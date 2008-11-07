@@ -11,7 +11,7 @@ class SolutionsGrid::ActiveRecordColumn < SolutionsGrid::Column
   end
     
   def does_column_exist?
-    condition = respond_to?(@methodname) || @model.column_names.include?(self.name)
+    condition = respond_to?(@methodname) || @model.column_names.include?(self.name) || @model.instance_methods.include?(self.name)
     condition ||= @example_of_record.respond_to?(self.name) if @example_of_record
     return condition
   end
