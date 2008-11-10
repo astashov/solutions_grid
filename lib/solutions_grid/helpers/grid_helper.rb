@@ -16,7 +16,7 @@ module SolutionsGrid
     
     def show_table(grid)
       output = ""
-      output += "<table class='grid' border=\"1\">\n"
+      output += "<table class='grid'>\n"
       output += show_headers(grid)
       output += show_values(grid)
       output += "</table>\n"
@@ -45,7 +45,7 @@ module SolutionsGrid
     private
     
       def show_headers(grid)
-        output = "<tr>\n"
+        output = "<tr class=\"header_row\">\n"
         output += show_headers_of_values(grid)
         output += show_headers_of_actions(grid)
         output += "\n</tr>\n"
