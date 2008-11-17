@@ -2,9 +2,13 @@ require "solutions_grid/helpers/grid_helper.rb"
 
 class SolutionsGrid::Column
   
-  attr_reader :name, :modelname
-  attr_accessor :type
+  include ActionView::Helpers::UrlHelper  
+  include ActionController::UrlWriter
   include SolutionsGrid::GridHelper
+  include ERB::Util
+  
+  attr_reader :name, :modelname
+  attr_accessor :type, :default_url_options
   
   def initialize(name, model, record = nil)
     @name = name.to_s

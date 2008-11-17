@@ -25,14 +25,24 @@ describe SolutionsGrid::GridHelper do
   
   it "should display user defined columns of model" do
     SolutionsGrid::GridHelper.class_eval do
-      define_method(:feed_example_restricted) do |model|
-        value = model ? model.restricted : nil
-        { :key => "Restricted", :value => value ? "Yes" : "No" }
+      define_method(:feed_example_name) do |record|
+        if record
+          url = url_for(:controller => record.class.to_s.underscore, :action => 'edit', :id => record.id, :only_path => true)
+          value = link_to(h(record.name), url)
+        else
+          value = nil
+        end
+        { :key => "Name", :value => value }
       end
     end
-    grid = Grid.new(@feed, { :columns => {:show => %w{restricted}}, :name => 'feed'})
+    
+    grid = Grid.new(@feed, { :columns => {:show => %w{name category_id}}, :name => 'feed'})
     output = helper.show_grid(grid)
-    output.should match(/table.*tr.*th.*Restricted.*td.*No/m)
+    output.should match(/table.*tr.*th.*Name.*Category example.*td.*<a href=\"\/feed_example\/edit\/\d+\">somefeed<\/a>/m)
+    
+    SolutionsGrid::GridHelper.class_eval do
+      remove_method(:feed_example_name)
+    end
   end
   
   it "should display columns with actions" do
@@ -48,11 +58,11 @@ describe SolutionsGrid::GridHelper do
       end
     end
     grid = Grid.new(@feed, { :columns => {:show => %w{name category_id}}, 
-      :actions => %w{edit delete duplicate}, :name => 'feed'})
+      :actions => %w{edit}, :name => 'feed'})
     output = helper.show_grid(grid)
     output.should match(/table.*tr.*th.*Name.*Category example.*Edit.*td.*Edit/m)
   end
-  
+
   it "should display sorting up arrow (&#8595;) if sorted as 'asc'" do
     grid = Grid.new(@feed, { :columns => {:show => %w{name category_id restricted}}, :name => 'feed'})
     grid.sort('name', 'asc')
