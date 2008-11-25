@@ -1,33 +1,62 @@
 module SolutionsGrid::ErrorsHandling
     
   def check_for_errors
+    verify_that_model_is_specified
     verify_that_name_is_specified
     verify_that_columns_for_show_are_defined
-    verify_that_all_records_are_same_type
+    verify_that_sort_and_filter_columns_are_included_to_show_columns
     verify_that_there_are_no_unexisted_actions
-    verify_that_records_can_be_paginated
+    verify_that_column_to_sort_is_included_to_sort_columns
+    
+#    if @options[:filtered] && @options[:filtered][:from_date] && @options[:filtered][:to_date]
+#      verify_that_date_from_less_than_date_to(@options[:filtered][:from_date], @options[:filtered][:to_date])
+#    end
+    
   end
+  
 
   private
 
+    def verify_that_model_is_specified
+      raise ModelIsNotDefined, "You should specify model" unless @options[:model]
+    end
+  
     def verify_that_name_is_specified
       raise NameIsntSpecified, "You should specify name of the grid" unless @options[:name]
     end
 
     def verify_that_columns_for_show_are_defined
-      raise ColumnsForShowAreNotDefined, "You should define columns to show" unless @columns[:show]
+      raise ColumnsForShowAreNotDefined, "You should define columns to show" unless @columns[:show] || !@columns[:show].empty?
     end
-    
 
-    def verify_that_given_column_is_included_to_show_columns(column)
-      unless @columns[:show].map { |show_column| show_column.name }.include?(column)
-        raise ColumnIsNotIncludedToShow, "Column #{column} is not included to show columns"
+    def verify_that_sort_and_filter_columns_are_included_to_show_columns
+      check_column_including(@columns[:sort])
+      if @columns[:filter]
+        @columns[:filter].each do |key, columns|
+          check_column_including(columns)
+        end
+      end
+    end
+
+    def verify_that_there_are_no_unexisted_actions
+      @options[:actions].each do |action|
+        unless SolutionsGrid::Actions.instance_methods.include?("action_" + action)
+          raise UnexistedAction, "You are trying to show unexisted action '#{h(action)}'"
+        end
+      end
+    end
+
+    def verify_that_date_from_less_than_date_to(from_date, to_date)
+      if from_date && to_date && (from_date > to_date)
+        raise IncorrectDate, "Date From must be less than Date To"
       end
     end
     
-    def verify_that_array_contains_date_from_and_date_to(from_and_to_date_columns)
-      unless from_and_to_date_columns.size == 2
-        raise IncorrectSpanDate, "You should specify array of two elements as column - from_date and to_date"
+    def verify_that_column_to_sort_is_included_to_sort_columns
+      if @options[:sorted] && !@options[:sorted][:by_column].blank?
+        unless @columns[:sort].include?(@options[:sorted][:by_column])
+          raise UnexistedColumn, "You can't sort by column #{h(@options[:sorted][:by_column])}"
+        end
       end
     end
     
@@ -37,52 +66,28 @@ module SolutionsGrid::ErrorsHandling
       end
     end
 
-
-    def verify_that_all_records_are_same_type
-      @records.each do |record| 
-        unless record.is_a?(@options[:model])
-          raise DifferentTypesOfRecords, "All records of the displayed array must have same type"
+    def verify_that_array_contains_date_from_and_date_to(from_and_to_date_columns)
+      unless from_and_to_date_columns.size == 2
+        raise IncorrectSpanDate, "You should specify array of two elements as column - from_date and to_date"
+      end
+    end
+    
+    
+    def check_column_including(given_columns)
+      given_columns.each do |columns|
+        columns = Array(columns)
+        columns.each do |column|
+          unless @columns[:show].include?(column)
+            raise ColumnIsNotIncludedToShow, "Column #{h(column)} is not included to show columns"
+          end
         end
       end
     end
-
-
-    def verify_that_there_are_no_unexisted_actions
-      @options[:actions].each do |action|
-        unless respond_to?('action_' + action)
-          raise UnexistedAction, "You are trying to show unexisted action '#{action}'"
-        end
-      end
+    
+    def h(msg)
+      CGI.escapeHTML(msg.to_s)
     end
-
-    def verify_that_records_can_be_paginated
-      if !@records.empty? && @options[:paginate][:enabled]
-        unless Object.const_defined? "WillPaginate"
-          raise WillPaginateIsNotInstalled, "You are trying to paginate, but 'will_paginate' plugin is not installed"
-        end
-      end
-    end
-
-
-    def verify_that_there_are_no_columns_that_not_inluded_to_show_columns(action, column)
-      unless @columns[:show].include?(column.to_s)
-        raise ColumnIsNotIncludedToShow, "You are trying to #{action} column '#{column}'. " +
-          "This column is not included to show, you can't do this."
-      end
-    end
-
-
-    def verify_that_records_are_sorted_by_column_included_to_sort_columns(by_column)
-      raise UnexistedColumn, "You trying to sort records by incorrect column" unless @columns[:sort].map{ |c| c.name }.include?(by_column)
-    end
-
-
-    def verify_that_date_from_less_than_date_to(from_date, to_date)
-      if from_date && to_date && (from_date > to_date)
-        raise IncorrectDate, "Date From must be less than Date To"
-      end
-    end
-
+    
     # Exception will be raised when +@records+ has records of different classes
     class DifferentTypesOfRecords < StandardError; end;
 

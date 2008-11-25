@@ -26,7 +26,7 @@ class GridController < ApplicationController
       format.js do
         controller = session[:grid][name][:controller]
         action = session[:grid][name][:action]
-        redirect_to url_for(:controller => controller, :action => action, :format => 'js')
+        redirect_to url_for(:controller => controller, :action => action, :format => 'js', :grid => name)
       end
     end
     
@@ -61,7 +61,7 @@ class GridController < ApplicationController
       format.js do
         controller = session[:grid][name][:controller]
         action = session[:grid][name][:action]
-        redirect_to url_for(:controller => controller, :action => action, :format => 'js')
+        redirect_to url_for(:controller => controller, :action => action, :format => 'js', :grid => name)
       end
     end 
 

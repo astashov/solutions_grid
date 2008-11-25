@@ -1,127 +1,143 @@
 module SolutionsGrid
   module GridHelper
     
-    def show_grid(grid)
-      prefix = set_name_prefix(grid)
+    def show_grid(grid, filter = [])
       session[:grid] ||= {}
       name = grid.options[:name].to_sym
       session[:grid][name] ||= {}
       session[:grid][name][:controller] = params[:controller]
       session[:grid][name][:action] = params[:action]
-      output = "<div id='#{prefix}spinner'>&nbsp;</div>\n"
-      output += "<div id='#{prefix}grid'>\n"
-      output += show_table(grid)
-      output += "</div>\n"
-    end
-    
-    def show_table(grid)
-      output = ""
-      output += "<table class='grid'>\n"
-      output += show_headers(grid)
-      output += show_values(grid)
-      output += "</table>\n"
-      output += show_paginate(grid) if grid.options[:paginate][:enabled]
-      output
-    end
-    
-    
-    def show_filter(grid, show_date = false)
-      prefix = set_name_prefix(grid)
-      output = ""
-      url = filter_url(:grid_name => grid.options[:name])
-      output += "<form action=\"#{url}\" method=\"get\" id=\"#{prefix}filter\">"
-      output += "<input type=\"hidden\" name=\"grid_name\" class=\"grid_name\" value=\"#{grid.options[:name]}\" />"
-      output += add_select_tags(grid) if show_date
-      output += "<label for=\"#{prefix}string_filter\">Filter:</label> "
-      output += text_field_tag("#{prefix}string_filter", grid.options[:filtered] ? grid.options[:filtered][:by_string] : '', :size => 20, :maxlength => 200) + " "
-      output += submit_tag('Filter', :class => "filter_button") + " "
-      output += submit_tag('Clear')
-      output += "</form>"
-      output += "<div id=\"#{prefix}filter_indicator\">" + (grid.options[:filtered] ? 'Filtered' : '') + '</div>'
-      output
-    end
-    
-    
-    private
-    
-      def show_headers(grid)
-        output = "<tr class=\"header_row\">\n"
-        output += show_headers_of_values(grid)
-        output += show_headers_of_actions(grid)
-        output += "\n</tr>\n"
+      
+      helper_module_name = grid.options[:name].camelize.to_s
+      model_helpers_module = "SolutionsGrid::#{helper_module_name}"
+      if SolutionsGrid.const_defined?(helper_module_name)
+        self.class.send(:include, model_helpers_module.constantize) 
       end
+      self.class.send(:include, SolutionsGrid::Actions)
       
+      prepare_headers_of_values(grid)
+      prepare_headers_of_actions(grid)
       
-      def show_headers_of_values(grid)
-        output = ""
-        # Showing headers of table, attributes is being taken from
-        # /helpers/attributes/'something'.rb too or just humanized.
+      prepare_values(grid)
+
+      prepare_paginate(grid)
+      
+      render :partial => 'grid/grid.html.haml', :locals => { :grid => grid, :filter => filter }
+    end
+    
+    
+    private      
+      
+      # Showing headers of table, attributes is being taken from
+      # /helpers/attributes/'something'.rb too or just humanized.
+      def prepare_headers_of_values(grid)
+        grid.view[:headers] ||= []
         grid.columns[:show].each do |column|
-          show_value = column.show_header(grid.records.first)
+          
+          show_value = case
+          when self.class.instance_methods.include?(grid.options[:name] + "_" + column)
+            send(grid.options[:name] + "_" + column)[:key]
+          when column =~ /_id/
+            column.gsub('_id', '').humanize
+          else
+            column.humanize
+          end
+          
           show_value = if grid.columns[:sort].include?(column)
             link_to(h(show_value), sort_url(:column => column, :grid_name => grid.options[:name]), :class => "sorted")
           else
             h(show_value)
           end
-          if grid.options[:sorted] && grid.options[:sorted][:by_column] == column.name
+          
+          if grid.options[:sorted] && grid.options[:sorted][:by_column] == column
             show_value += grid.options[:sorted][:order] == 'asc' ? " &#8595;" : " &#8593;"
           end
-          output += "<th>#{show_value}</th>" 
+          
+          grid.view[:headers] << show_value
         end
-        output
       end
       
       
-      def show_headers_of_actions(grid)
-        grid.options[:actions].inject("") { |output, action| output + "<th>#{send("action_" + action, nil)[:key]}</th>" }
+      def prepare_headers_of_actions(grid)
+        grid.view[:headers] ||= []
+        grid.options[:actions].each do |action|
+          grid.view[:headers] << send("action_" + action)[:key]
+        end
       end
     
       
-      def show_values(grid)
-        output = ""
-        # Show contents of table, attributes is being taken from
-        # /helpers/attributes/'something'.rb too or just escaped.
+      # Show contents of table, attributes is being taken from
+      # /helpers/attributes/'something'.rb too or just escaped.
+      def prepare_values(grid)
+        grid.view[:records] ||= []
         grid.records.each do |record|
-          output += "<tr>\n"
-
+          show_values = []
+          
           grid.columns[:show].each do |column|
-            show_value = column.show_value(record)
-            output += "<td>#{show_value}</td>"
+            name = grid.options[:name]
+            method = grid.options[:name] + "_" + column
+            show_values << case
+            when self.class.instance_methods.include?(method)
+              send(grid.options[:name] + "_" + column, record)[:value]
+            when column =~ /_id/
+              belonged_model, belonged_column = grid.get_belonged_model_and_column(column)
+              association = grid.get_association(belonged_model)
+              associated_record = record.send(association)
+              associated_record.respond_to?(belonged_column) ? associated_record.send(belonged_column) : ""
+            else
+              record.send(column)
+            end
           end
-          # Adding headers for actions
-          grid.options[:actions].each { |action| output += "<td>#{send("action_" + action, record)[:value]}</td>" }
-
-          output += "\n</tr>\n"
+          
+          grid.options[:actions].each do |action|
+            show_values << send("action_" + action, record)[:value]
+          end
+          
+          grid.view[:records] << show_values
         end
-        output
       end
       
       
-      def show_paginate(grid)
-        additional_params = {:class => "grid_pagination", :id => "#{grid.options[:name]}_grid_pagination"}
-        additional_params[:param_name] = "#{grid.options[:name]}_page"
-        will_paginate(grid.records, additional_params) || ""
+      def prepare_paginate(grid)
+        if grid.options[:paginate]
+          additional_params = {:class => "grid_pagination", :id => "#{grid.options[:name]}_grid_pagination"}
+          additional_params[:param_name] = "#{grid.options[:name]}_page"
+          grid.view[:paginate] = will_paginate(grid.records, additional_params)
+        else
+          grid.view[:paginate] = ""
+        end
       end
       
       
-      def add_select_tags(grid)
-        prefix = set_name_prefix(grid)
-        type = grid.options[:type_of_date_filtering]
-        klass = (type == :datetime) ? DateTime : type.to_s.camelize.constantize
-        output = "<label for=\"date_filter\">#{klass.to_s} Filter:</label><br />"
-        now = klass.today rescue klass.now
-        
-        from_date = grid.convert_to_date(grid.options[:filtered][:from_date], type) rescue now
-        to_date = grid.convert_to_date(grid.options[:filtered][:to_date], type) rescue now
-        helper_name = "select_#{type}".to_sym
-        
-        output += send(helper_name, from_date, :prefix => "#{prefix}from_date") + "<br />"
-        output += send(helper_name, to_date, :prefix => "#{prefix}to_date") + "<br />"
-        output
+      def place_date(grid, type, filter)
+        name = grid.options[:name]
+        default_date = if filter && filter[name.to_sym]
+          grid.get_date(filter[name.to_sym][type])
+        else
+          nil
+        end
+        prefix = name + "_" + type.to_s
+        select_date(default_date, :order => [:year, :month, :day], :prefix => prefix, :include_blank => true)
       end
       
-      def set_name_prefix(grid)
-        grid.options[:name] + "_"
-      end
+#      def add_select_tags(grid)
+#        prefix = set_name_prefix(grid)
+#        type = grid.options[:type_of_date_filtering]
+#        klass = (type == :datetime) ? DateTime : type.to_s.camelize.constantize
+#        output = "<label for=\"date_filter\">#{klass.to_s} Filter:</label><br />"
+#        now = klass.today rescue klass.now
+#        
+#        from_date = grid.convert_to_date(grid.options[:filtered][:from_date], type) rescue now
+#        to_date = grid.convert_to_date(grid.options[:filtered][:to_date], type) rescue now
+#        helper_name = "select_#{type}".to_sym
+#        
+#        output += send(helper_name, from_date, :prefix => "#{prefix}from_date") + "<br />"
+#        output += send(helper_name, to_date, :prefix => "#{prefix}to_date") + "<br />"
+#        output
+#      end
+#      
+#      def set_name_prefix(grid)
+#        grid.options[:name] + "_"
+#      end
   end
 end

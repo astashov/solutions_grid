@@ -3,7 +3,13 @@
 # these records, such as sorting and filtering. With help of GridHelper it can
 # show these records as table with sortable headers, show filters.
 class Grid
-  include SolutionsGrid::ErrorsHandling
+  include SolutionsGrid::ErrorsHandling  
+  attr_accessor :view
+  attr_reader :records, :options, :columns, :conditions, :values, :include, :order
+  
+#  include SolutionsGrid::GridHelper
+#  include SolutionsGrid::Sort
+#  include SolutionsGrid::Filter
   # To initialize grid, you should pass +records+ and +options+ as parameters.
   # +Records+ can be ActiveRecord objects or just simple hashes. +Options+ change
   # default options, it is not required parameter.
@@ -108,7 +114,7 @@ class Grid
   # 
   #   def index
   #     @feeds = Feed.find(:all)
-  #     @table = Grid.new(@feeds)
+  #     @table = Grid.new(@feeds, :name => "feeds")
   #   end
   # 
   # <i>in view:</i>
@@ -129,7 +135,8 @@ class Grid
   #           :show => %w{name description}, 
   #           :sort => %w{name}
   #         }, 
-  #         :sorted => session[:sort][:feed]
+  #         :sorted => session[:sort][:feed],
+  #         :name => "feeds"
   #       }
   #     )
   #   end
@@ -166,156 +173,174 @@ class Grid
   # There will be actions 'edit' and 'delete' (but remember, you need action methods
   # 'action_edit' and 'action_delete' in SolutionGrid::GridHelper in 'app/helpers/attributes/actions.rb').
   # There will be filterable column 'name', and it will be filtered by session[:filter][:feed][:by_string] value.
-  def initialize(records = [], options = {})
-    # BTW, This is just proxy for true grid object
-    
-    options[:model] = try_to_define_model(options[:model], Array(records).first)
-    @grid = case 
-      when options[:model] == Hash
-        SolutionsGrid::HashGrid.new(records, options)
-      else
-        SolutionsGrid::ActiveRecordGrid.new(records, options)
-      end
-      
-    
-  end
-  
-  private
-  
-    def try_to_define_model(model, record)
-      return model if model
-      return record.class if record
-      raise ModelIsNotDefined, "You should define model" unless model
-    end
-  
-    def method_missing(name, *args)
-      args.empty? ? @grid.send(name) : @grid.send(name, *args)
-    end
-
-end
-
-
-class SolutionsGrid::CommonGrid
-  
-  include SolutionsGrid::ErrorsHandling
-  include SolutionsGrid::GridHelper
-  include SolutionsGrid::Sort
-  include SolutionsGrid::Filter
-
-  def initialize(records = [], options = {})
-    @records = Array(records)
-    
-    # Initialization of options
+  def initialize(options = {})    
     @options = {}
-    
     @options[:name] = options[:name].to_s if options[:name]
-    @options[:model] = options[:model]
-    @options[:model] ||= @records[0].class unless @records.empty?    
+    @options[:model] = options[:model]  
     @options[:modelname] = @options[:model].to_s.underscore
     @options[:actions] = Array(options[:actions]) || []
-    @options[:type_of_date_filtering] = set_type_of_date(options[:type_of_date_filtering])
+    @options[:conditions] = options[:conditions]
+    @options[:values] = options[:values] || {}
+    @options[:include] = Array(options[:include]) || []
+    @options[:joins] = options[:joins]
+    @options[:paginate] = options[:paginate]
     
-    @options[:filtered] = options[:filtered]
-    @options[:sorted] = options[:sorted]
-    
-    initialize_pagination(options[:paginate])
-
     options[:columns] ||= {}
-    options[:columns][:filter] ||= {}
+    @columns = {}
+    @columns[:show] = Array(options[:columns][:show] || [])
+    @columns[:sort] = options[:columns][:sort] || @columns[:show].dup
+    @columns[:filter] = options[:columns][:filter]
     
-    initialize_columns(options[:columns])
-
+    @options[:sorted] = options[:sorted]
+    @options[:filtered] = options[:filtered]
+    
     check_for_errors
-
-    # Filtering...
-    if @options[:filtered].is_a?(Hash)
-      filter_by_string(@options[:filtered][:by_string]) if @options[:filtered][:by_string]
-      filter_by_dates(@options[:filtered][:from_date], @options[:filtered][:to_date]) if @options[:filtered][:from_date] || @options[:filtered][:to_date]
-    end
     
-    # Sorting...
-    if @options[:sorted].is_a?(Hash)
-      sort(@options[:sorted][:by_column], @options[:sorted][:order]) 
-    end
-		
-    # Paginating...
-    if @options[:paginate][:enabled]
-      @records = @records.paginate(
-        :page => @options[:paginate][:page] || 1, 
-        :per_page => @options[:paginate][:per_page] || 20
-      )
+    @records = get_records
+    @view = {}
+  end
+  
+  
+  def get_belonged_model_and_column(column)
+    belonged_column = column.match(/(.*)_id(.*)/)
+    if belonged_column && !belonged_column[2].blank?
+      column = belonged_column[2].gsub(/^(_)/, '')
+      [ belonged_column[1].camelize.constantize, column ]
+    elsif belonged_column && !belonged_column[1].blank?
+      [ belonged_column[1].camelize.constantize, 'name' ]
+    else
+      [ nil, nil ]
     end
   end
+
+
+  def get_association(belonged_model)
+    belonged_model.to_s.underscore.to_sym
+  end
+  
+  
+  def get_date(params)
+    return nil if !params || params[:year].blank?
+    params[:month] = params[:month].blank? ? 1 : params[:month]
+    params[:day] = params[:day].blank? ? 1 : params[:day]
+    conditions = [ params[:year].to_i, params[:month].to_i, params[:day].to_i ]
+    conditions += [ params[:hour].to_i, params[:minute].to_i ] if params[:hour]
+    DateTime.civil(*conditions)
+  end
+  
   
   private
   
-    def initialize_pagination(options_paginate)
-      unless options_paginate
-        @options[:paginate] = { :enabled => Object.const_defined?("WillPaginate") }
+    def get_records
+      @include ||= []
+      method = @options[:paginate] ? :paginate : :find
+      conditions = {}
+      conditions.merge!(filter(@options[:filtered]))
+      conditions.merge!(sort(@options[:sorted]))
+      include_belonged_models_from_show_columns
+      @include += @options[:include]
+      conditions[:include] = @include
+      conditions[:joins] = @options[:joins] if @options[:joins]
+      if @options[:paginate]
+        method = :paginate
+        conditions.merge!(@options[:paginate])
       else
-        @options[:paginate] = {
-          :enabled => options_paginate[:enabled],
-          :page => options_paginate[:page],
-          :per_page => options_paginate[:per_page]
-        }
+        method = :find
       end
+      
+      @options[:model].send(method, :all, conditions)
+    end
+    
+    
+    def sort(options)
+      return {} unless options
+      order = (options[:order] == 'asc') ? "ASC" : "DESC"
+      table_with_column = get_correct_table_with_column(options[:by_column])
+      @order = "#{table_with_column} #{order}"
+      { :order => @order }
+    end
+    
+    
+    def filter(options)
+      @conditions ||= []
+      @values ||= {}
+      if options
+        filter_by_string
+        filter_by_date
+      end
+      @conditions << "(" + @options[:conditions] + ")" if @options[:conditions]
+      @values.merge!(@options[:values])
+      @conditions = @conditions.join(" AND ")
+      { :conditions => [ @conditions, @values ] }
     end
   
-    def initialize_columns(columns)
-      @columns = {}
-      @columns[:show] = initialize_show_columns(columns[:show] || significant_columns)
-      @columns[:sort] = initialize_sort_or_filter_by_string_columns(columns[:sort])
-      @columns[:filter] = {}
-      @columns[:filter][:by_string] = initialize_sort_or_filter_by_string_columns(columns[:filter][:by_string])
-      @columns[:filter][:by_date] = initialize_filter_columns_by_date(columns[:filter][:by_date])
-      @columns[:filter][:by_span_date] = initialize_filter_by_span_date(columns[:filter][:by_span_date])
-    end
-
-    def initialize_sort_or_filter_by_string_columns(column_names)
-      return @columns[:show].dup unless column_names
-      columns = []
-      Array(column_names).each do |column_name|
-        verify_that_given_column_is_included_to_show_columns(column_name)
-        columns << @columns[:show].select { |column| column.name == column_name }.first
+    
+    def filter_by_string
+      string = @options[:filtered] ? @options[:filtered][:by_string] : nil
+      return if string.blank?
+      conditions = []
+      Array(@columns[:filter][:by_string]).each do |column|
+        table_with_column = get_correct_table_with_column(column)
+        conditions << "#{table_with_column} LIKE :#{column}"
+        @values[column.to_sym] = "%#{string}%"
       end
-      columns
+      @conditions << "(" + conditions.join(" OR ") + ")"
     end
-
-    def initialize_filter_columns_by_date(column_names)
-      return [] unless column_names
-      columns = []
-      Array(column_names).each do |column_name|
-        verify_that_given_column_is_included_to_show_columns(column_name)
-        delete_column_from_filter_by_string_columns(column_name)
-        column = @columns[:show].select { |column| column.name == column_name }.first
-        column.type = @options[:type_of_date_filtering]
-        columns << column
+    
+    
+    def filter_by_date
+      from_date = @options[:filtered][:from_date]
+      from_date = get_date(from_date)
+      to_date = @options[:filtered][:to_date]
+      to_date = get_date(to_date)
+      return unless from_date || to_date
+      
+      date_conditions = []
+      Array(@columns[:filter][:by_date]).each do |column|
+        conditions = []
+        table_with_column = get_correct_table_with_column(column)
+        conditions << "#{table_with_column} >= :#{column}_from_date" if from_date
+        conditions << "#{table_with_column} <= :#{column}_to_date" if to_date
+        date_conditions << "(" + conditions.join(" AND ") + ")"
+        @values["#{column}_from_date".to_sym] = from_date if from_date
+        @values["#{column}_to_date".to_sym] = to_date if to_date
       end
-      columns
-    end
-
-    def initialize_filter_by_span_date(column_names)
-      return [] unless column_names
-      columns = []
-      Array(column_names).each do |from_and_to_date_columns|
-        date_columns = []
-        verify_that_array_contains_date_from_and_date_to(from_and_to_date_columns)
-        from_and_to_date_columns.each do |column_name|
-          verify_that_given_column_is_included_to_show_columns(column_name)
-          delete_column_from_filter_by_string_columns(column_name)
-          column = @columns[:show].select { |column| column.name == column_name }.first
-          column.type = @options[:type_of_date_filtering]
-          date_columns << column
-        end
-        columns << date_columns
+      
+      Array(@columns[:filter][:by_span_date]).each do |columns|
+        conditions = []
+        table_with_column_from = get_correct_table_with_column(columns[0])
+        table_with_column_to = get_correct_table_with_column(columns[1])
+        conditions << "#{table_with_column_from} <= :#{columns[0]}_to_date" if to_date
+        conditions << "#{table_with_column_to} >= :#{columns[1]}_from_date" if from_date
+        date_conditions << "(" + conditions.join(" AND ") + ")"
+        @values["#{columns[0]}_to_date".to_sym] = to_date if to_date
+        @values["#{columns[1]}_from_date".to_sym] = from_date if from_date
       end
-      columns
-    end
-
-    def delete_column_from_filter_by_string_columns(column_name)
-      if @columns[:filter][:by_string]
-        @columns[:filter][:by_string].delete_if { |column| column.name == column_name}
-      end
+      
+      @conditions << date_conditions.join(" OR ")
     end
   
+    
+    
+    def get_correct_table_with_column(column)
+      belonged_model, belonged_column = get_belonged_model_and_column(column)
+          
+      if belonged_model
+        by_column = ActiveRecord::Base.connection.quote_column_name(belonged_column)
+        association = get_association(belonged_model)
+        @include << association unless @include.include?(association)
+        return "#{belonged_model.table_name}.#{by_column}"
+      else
+        by_column = ActiveRecord::Base.connection.quote_column_name(column)
+        return "#{@options[:model].table_name}.#{by_column}"
+      end
+    end
+    
+    
+    def include_belonged_models_from_show_columns
+      Array(@columns[:show]).each do |column|
+        get_correct_table_with_column(column)
+      end
+    end
+    
 end 
