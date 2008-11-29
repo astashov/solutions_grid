@@ -1,6 +1,14 @@
 module SolutionsGrid
   module GridHelper
     
+    # This helper shows generated grid. It takes two arguments:
+    #  * grid - grid's object that you created in controller
+    #  * filter - array with filters (need for showing filter forms). It can contain:
+    #    * :text - show form with filter by string
+    #    * :date - show form with filter by date
+    # You should have partial 'grid/grid' in your app/views directory with
+    # template of the grid. You can get example of this grid in 
+    # files/app/views/grid/_grid.html.haml or .html.erb
     def show_grid(grid, filter = [])
       session[:grid] ||= {}
       name = grid.options[:name].to_sym

@@ -7,51 +7,67 @@ class Grid
   attr_accessor :view
   attr_reader :records, :options, :columns, :conditions, :values, :include, :order
   
-  # To initialize grid, you should pass and +options+ as parameter.
+  # Grid initialization. It constructs SQL query (with sorting and filtering
+  # conditions, optionally), then fill @records by result of query. This 
+  # array of records you can use in helper, show_grid().
   # 
   # == Options
   # 
   # === Required
   #
-  # These options you *must* to set 
-  # * <tt>:name</tt> - set name of the grid. This parameter will be used for storing
-  #                    sorted and filtered info if there are more than one grid on the page. 
-  # * <tt>:model</tt> - set model. It will be used for constructing column names,
-  #                     if columns is not specified obviously and there are no records
-  #                     specified for displaying. 
-  # * <tt>:columns</tt> - sets columns of records to show, filter and sort. Pass columns as arrays.
-  # * -> <tt>[:columns][:show]</tt> - pass columns you need to show (as array, do you remember? :))
-  # * -> <tt>[:columns][:sort]</tt> - pass columns you need to allow sorting.
-  # * -> <tt>[:columns][:filter][:by_string]</tt> - pass columns you need to allow filtering by string.
-  # * -> <tt>[:columns][:filter][:by_date]</tt> - pass columns you need to allow filtering by date.
-  # * -> <tt>[:columns][:filter][:by_span_date]</tt> - pass columns you need to allow filtering by span of date.
-  #                                                   You should pass columns as array of arrays 
-  #                                                   (format of arrays - [ start_date_column, end_date_column ])
-  # * <tt>:filter_path</tt> - set path to send filter requests. This path should lead to action, 
-  #                           that write filter to session. You should pass hash with keys:
-  #                           <tt>:controller</tt> - the controller that contains the sort action,
-  #                           <tt>:action</tt>
-  #                           See details below.
-  # * <tt>:sort_path</tt> - set path to send sort requests. This path should lead to action, 
-  #                         that write sort column to session. See details below. Syntax is similar to <tt>:filter_path</tt>
-  # * <tt>:actions</tt> - pass necessary actions (such as 'edit', 'destroy', 'duplicate'). Details about actions see below.
-  # * <tt>:filtered</tt> - pass hash with parameters:
-  # * -> <tt>[:filtered][:by_string]</tt> - if you pass string, all 'filtered by string' columns will be filtered by this string
-  # * -> <tt>[:filtered][:by_date]</tt> - if you pass date (in Date or DateTime format), all 
-  #                                      'filtered by date' columns will be filtered by this date
-  # * -> <tt>[:filtered][:by_span_date]</tt> - if you pass array of 2 dates (start date and end date)
-  #                                           (in Date or DateTime format), all 'filtered by span of date' 
-  #                                           columns will be filtered by this span
-  # * <tt>:type_of_date_filtering</tt> - show filter form with date or datetime select boxes. If you display Hashes,
-  #                                      it will show Date by default. If you display ActiveRecord objects,
-  #                                      there will try to decide about select boxed automatically.
-  #                                      You can pass Date or DateTime parameters.
+  # 1. <tt>[:name]</tt>
+  #    Set name of the grid. This parameter will be used for storing sorted and 
+  #    filtered info of this grid. 
+  # 2. <tt>[:model]</tt> 
+  #    Set model. It will be used for constructing SQL query.
+  # 3. <tt>[:columns][:show]</tt> 
+  #    Columns that you need to show, pass as array, e.g. %w{ name body }
   # 
-  #                                                                                     
+  # === Optional
+  # 
+  # 1. <tt>[:columns][:sort]</tt> 
+  #    Pass columns you need to allow sorting. Default is columns to show.
+  # 2. <tt>[:columns][:filter][:by_string]</tt>
+  #    Pass columns you need to allow filtering by string.
+  # 3. <tt>[:columns][:filter][:by_date]</tt>
+  #    Pass columns you need to allow filtering by date.
+  # 4. <tt>[:columns][:filter][:by_span_date]</tt>
+  #    Pass columns you need to allow filtering by span of date. You should pass 
+  #    columns as array of arrays (format of arrays - [ start_date_column, 
+  #    end_date_column ]), e.g. [ [start_date_column, end_date_column] ].
+  # 5. <tt>[:actions]</tt>
+  #    Pass necessary actions (such as 'edit', 'destroy', 'duplicate'). 
+  #    Details about actions see below.
+  # 6. <tt>[:sorted]</tt>
+  #    Pass column to SQL query that will be sorted and order of sorting. Example:
+  #    [:sorted] = { :by_column => "name", :order => "asc" }
+  # 6. <tt>[:filtered]</tt>
+  #    Pass hash with parameters:
+  #     * <tt>[:filtered][:by_string]</tt> 
+  #       If you pass string, all 'filtered by string' columns will be filtered by this string
+  #     * <tt>[:filtered][:from_date]</tt> and [:filtered][:end_date]
+  #       [:columns][:filter][:by_date] should have date that is in range
+  #       of these dates (otherwise, it will not be in @records array).
+  #       [:columns][:filter][:by_span_date] should have date range that intersects
+  #       with range of these dates.
+  # 7. <tt>[:conditions]</tt>, <tt>[:values]</tt>, <tt>[:include]</tt>, <tt>[:joins]</tt>
+  #    You can pass additional conditions to grid's SQL query. E.g.,
+  #    [:conditions] = "user_id = :user_id"
+  #    [:values] = { :user_id => "1" }
+  #    [:include] = [ :user ]
+  #    will select and add to @records only records of user with id = 1.
+  # 8. <tt>[:paginate]</tt>
+  #    If you pass [:paginate] parameter, #paginate method will be used instead of
+  #    #find (i.e., you need will_paginate plugin). [:paginate] is a hash:
+  #    [:paginate][:page] - page you want to see
+  #    [:paginate][:per_page] - number of records per page
+  # 
+  #                                                                                                                                                            
   # == Default values of the options
+  # 
   # * <tt>[:columns][:show]</tt> - all columns of the table, except 'id', 'updated_at', 'created_at'.
   # * <tt>[:columns][:sort]</tt> - default is equal [:columns][:show]
-  # * <tt>[:columns][:filter][:by_string]</tt> - default is equal [:columns][:show]
+  # * <tt>[:columns][:filter][:by_string]</tt> - default is empty array
   # * <tt>[:columns][:filter][:by_date]</tt> - default is empty array
   # * <tt>[:columns][:filter][:by_span_date]</tt> - default is empty array
   # * <tt>[:actions]</tt> - default is empty array
@@ -59,16 +75,17 @@ class Grid
   # * <tt>[:sorted]</tt> - default is empty hash
   # 
   # 
-  # == About custom display of actions and values
-  # You can create your own rules to display columns (i.e., you need to show 'Yes' if some boolean
+  # == User-defined display of actions and values
+  # 
+  # You can create your own rules to display columns (e.g., you need to show 'Yes' if some boolean
   # column is true, and 'No' if it is false). For that, you should add method with name
-  # modelname_columnname to SolutionGrid::GridHelper. You should create 'attributes' folder in
-  # app/helper and create file with filename modelname.rb. Let's implement example above:
+  # gridname_columnname to SolutionGrid::'GridName'. You should create 'attributes' folder in
+  # app/helper and create file with filename gridname.rb. Let's implement example above:
   # 
-  # We have model Feed with boolean column 'restricted'. We should write in /app/helpers/attributes/feed.rb
+  # We have grid with name 'feeds' and boolean column 'restricted'. We should write in /app/helpers/attributes/feeds.rb
   # 
-  #   module SolutionsGrid::GridHelper
-  #     def feed_restricted(record = nil)
+  #   module SolutionsGrid::Feeds
+  #     def feeds_restricted(record = nil)
   #       value = record ? record.restricted : nil
   #       { :key => "Restricted", :value => value ? "Yes" : "No" }
   #     end
@@ -80,14 +97,14 @@ class Grid
   # 
   # If such method will not be founded, there are two ways to display values.
   # 
-  # * If column looks like 'category_id', the plugin will try to display 'name' column of belonging table 'categories'.
-  # * If column doesn't look like 'something_id' or there is no column 'name' of belonging table, or there is no 
-  #   belonging table, the plugin just display value of this column.
+  # * If column looks like 'category_id', the plugin will try to display 'name' column of belonged table 'categories'.
+  # * If column looks like 'category_id_something', the plugin will try to display 'something' column of belonged table 'categories'.
+  # * If column doesn't look like 'something_id' the plugin just display value of this column.
   #   
-  # You should add actions that you plan to use to module SolutionsGrid::GridHelper by similar way.
+  # You should add actions that you plan to use to module SolutionsGrid::Actions by similar way.
   # Example for 'edit' action, file 'app/helpers/attributes/actions.rb':
   # 
-  #   module SolutionsGrid::GridHelper
+  #   module SolutionsGrid::Actions
   #     def action_edit(record = nil)
   #       if record
   #         url = url_for(:controller => record.class.to_s.underscore.pluralize, :action => 'edit')
@@ -101,42 +118,36 @@ class Grid
   # 
   # 
   # == Sort and filter
-  # To sort and filter records of the grid you MUST pass options <tt>:filtered</tt> or <tt>:sorted</tt>. This parameters contain:
-  # * <tt>[:sorted][:by_column]</tt> - you should pass column you want to sort
-  # * <tt>[:sorted][:order]</tt> - you can pass order of sorting ('asc' or 'desc'). Default is 'asc'.
-  # * <tt>[:filtered][:by_string] - you can pass string, and columns you described in [:column][:filter][:by_string] will be filtered by this string.
-  # * <tt>[:filtered][:by_date] - you can pass date, and columns you described in [:column][:filter][:by_date] will be filtered by this date.
-  # * <tt>[:filtered][:by_span_date] - you can pass array [ start_date, end_date ], and columns you described in [:column][:filter][:by_span_date] will be filtered by overlapping this span.
   # 
-  # == Examples of use the SolutionGrid
+  # To sort and filter records of the grid you *must* pass options <tt>:filtered</tt> or <tt>:sorted</tt>.
+  # 
+  # == Examples of using the SolutionGrid
+  # 
   # <i>in controller:</i>
   # 
   #   def index
-  #     @feeds = Feed.find(:all)
-  #     @table = Grid.new(@feeds, :name => "feeds")
+  #     @table = Grid.new(:name => "feeds", :model => Feed, :columns => { :show => %{name body}})
   #   end
   # 
   # <i>in view:</i>
   # 
   #   show_grid(@table)
   #   
-  # It will display feeds with all columns defined in Feed model, except 'id', 'updated_at'
-  # and 'created_at'. There will be no actions and filterable columns, all columns will be sortable, 
-  # but because you don't pass <tt>:sorted</tt> option, sort will not work.
+  # It will display feeds with 'name' and 'body'. There will be no actions and 
+  # filterable columns, all columns will be sortable, but because you don't pass 
+  # <tt>:sorted</tt> option, sort will not work.
   # 
   # 
   # <i>in controller:</i>
   #   def index
-  #     @feeds = Feed.find(:all)
   #     @table = Grid.new(
-  #       @feeds, {
-  #         :columns => {
-  #           :show => %w{name description}, 
-  #           :sort => %w{name}
-  #         }, 
-  #         :sorted => session[:sort][:feed],
-  #         :name => "feeds"
-  #       }
+  #       :columns => {
+  #         :show => %w{name description}, 
+  #         :sort => %w{name}
+  #       }, 
+  #       :sorted => session[:sort] ? session[:sort][:feeds] : nil,
+  #       :name => "feeds",
+  #       :model => Feed
   #     )
   #   end
   # 
@@ -144,34 +155,37 @@ class Grid
   #   show_grid(@table)
   #   
   # It will display feeds with columns 'name' and 'description'. There will be no actions and 
-  # filterable columns, 'name' column will be sortable, column to sort stores in session[:sort][:feed][:by_column].
+  # filterable columns, 'name' column will be sortable, sort info is stored in 
+  # session[:sort][:feeds][:by_column] (session[:sort][:feeds] hash can be automatically
+  # generated by grid_contoller of SolutionsGrid. Just add :sorted => session[:sort][:feeds],
+  # and all other work will be done by the SolutionsGrid plugin)
   # 
   # 
   # <i>in controller:</i>
   #   def index
-  #     @feeds = Feed.find(:all)
   #     @table = Grid.new(
-  #       @feeds, {
-  #         :columns => {
-  #           :show => %w{name description}, 
-  #           :filter => { 
-  #             :by_string => %w{name}
-  #           },
-  #         }, 
-  #         :sorted => session[:sort][:feed],
-  #         :filtered => session[:filter][:feed],
-  #         :actions => %w{edit delete}
-  #       }
+  #       :columns => {
+  #         :show => %w{name description}, 
+  #         :filter => { 
+  #           :by_string => %w{name}
+  #         },
+  #       },
+  #       :name => "feeds",
+  #       :model => Feed
+  #       :sorted => session[:sort][:feeds],
+  #       :filtered => session[:filter][:feeds],
+  #       :actions => %w{edit delete}
   #     )
   #   end
   # 
   # <i>in view:</i>
-  #   show_grid(@table)
+  #   show_grid(@table, [ :text ])
   #   
   # It will display feeds with columns 'name' and 'description'. These columns will be sortable.
   # There will be actions 'edit' and 'delete' (but remember, you need action methods
-  # 'action_edit' and 'action_delete' in SolutionGrid::GridHelper in 'app/helpers/attributes/actions.rb').
+  # 'action_edit' and 'action_delete' in SolutionGrid::Actions in 'app/helpers/attributes/actions.rb').
   # There will be filterable column 'name', and it will be filtered by session[:filter][:feed][:by_string] value.
+  # (that will be automatically generated by SolutionsGrid's grid_controller
   def initialize(options = {})    
     @options = {}
     @options[:name] = options[:name].to_s if options[:name]

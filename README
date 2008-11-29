@@ -1,13 +1,111 @@
-SolutionsGrid
-=============
+== Description
 
-Introduction goes here.
-
-
-Example
-=======
-
-Example goes here.
+This is Ruby On Rails plugin, implementing AJAXed grid with sorting, filtering and 
+paginating (with help of will_paginate plugin).
 
 
-Copyright (c) 2008 [name of plugin creator], released under the MIT license
+== Features
+
+ * AJAXed Sorting and Filtering (works only with jQuery).
+ * Sorting and Filtering without AJAX.
+ * User-defined grid templates
+ * User-defined actions and record's values.
+
+
+== Installation
+
+  git clone git://github.com/astashov/solutions_grid.git vendor/plugins/solutions_grid
+
+or as submodule
+
+  git submodule add git://github.com/astashov/solutions_grid.git vendor/plugins/solutions_grid
+
+
+== Using
+
+For using of this plugin, you should do 3 steps:
+
+  1. Create grid object in your controller.
+     
+    @grid = Grid.new(:name => "users", :model => User, :columns => { :show => %w{login email} })
+
+  2. Show this grid object by show_grid helper in your view
+
+    show_grid(@grid)
+
+  3. Create 'grid/grid' partial in your app/views directory with template of the grid
+     (you can find examples in files/app/views/grid directory)
+
+Also, there are optional additional features:
+
+  4. Get jquery and livequery javascript libraries. Copy 
+     files/public/javascripts/solutions_grid.js to your javascript directory
+     and add to your layout:
+
+    = javascript_include_tag "jquery"
+    = javascript_include_tag "jquery.livequery"
+    = javascript_include_tag "solutions_grid"
+
+     It will add AJAXed sorting and filtering to your grid.
+
+  5. Create your own rules to display fields and actions of the grid by creating
+     files in app/helpers/attributes (see below)
+
+  6. You can tweak the grid object by many additional parameters (look at documentation
+     to Grid.new and show_grid).
+
+
+== User-defined display of actions and values
+ 
+ You can create your own rules to display columns (e.g., you need to show 'Yes' if some boolean
+ column is true, and 'No' if it is false). For that, you should add method with name
+ gridname_columnname to SolutionGrid::'GridName'. You should create 'attributes' folder in
+ app/helper and create file with filename gridname.rb. Let's implement example above:
+ 
+ We have grid with name 'feeds' and boolean column 'restricted'. We should write in /app/helpers/attributes/feeds.rb
+ 
+   module SolutionsGrid::Feeds
+     def feeds_restricted(record = nil)
+       value = record ? record.restricted : nil
+       { :key => "Restricted", :value => value ? "Yes" : "No" }
+     end
+   end
+ 
+ Function should take one parameter (default is nil) and return hash with keys
+ :key - value will be used for the headers of the table
+ :value - value will be user for cells of the table
+ 
+ If such method will not be founded, there are two ways to display values.
+ 
+ * If column looks like 'category_id', the plugin will try to display 'name' column of belonged table 'categories'.
+ * If column looks like 'category_id_something', the plugin will try to display 'something' column of belonged table 'categories'.
+ * If column doesn't look like 'something_id' the plugin just display value of this column.
+   
+ You should add actions that you plan to use to module SolutionsGrid::Actions by similar way.
+ Example for 'edit' action, file 'app/helpers/attributes/actions.rb':
+ 
+   module SolutionsGrid::Actions
+     def action_edit(record = nil)
+       if record
+         url = url_for(:controller => record.class.to_s.underscore.pluralize, :action => 'edit')
+         value = link_to("Edit", url)
+       else
+         value = nil
+       end
+       { :key => "Edit", :value => value }
+     end
+   end
+
+
+== TODO
+
+1. Make AJAX support with Prototype library too.
+
+== Bugreporting
+
+Please, post bugs here: http://astashov.lighthouseapp.com/projects/20777-solutions-grid
+ 
+== Authors and Credits
+ 
+Written by Anton Astashov, with Brenton Cheng, for Astrology.com (a division of iVillage Inc.)
+Released under the MIT license.
