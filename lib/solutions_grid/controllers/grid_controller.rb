@@ -71,18 +71,7 @@ class GridController < ApplicationController
   
   
   private
-  
-    def grid_parameters(page = nil)
-      { 
-        :columns => { :filter => {:by_string => [], :by_date => %w{date}}},
-        :sorted => session[:sort] ? session[:sort][:grid_example] : nil,
-        :filtered => session[:filter] ? session[:filter][:grid_example] : nil,
-        :paginate => { :enabled => true, :page => page, :per_page => 20 },
-        :name => 'grid_example',
-        :type_of_date_filtering => :date
-      }
-    end
-    
+     
     def error_handling(msg)
       msg = msg.to_s[0..1000] + "..." if msg.to_s.length > 1000
       flash[:error] = CGI.escapeHTML(msg.to_s)

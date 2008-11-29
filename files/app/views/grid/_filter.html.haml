@@ -1,0 +1,17 @@
+- form_tag filter_url(:grid_name => grid.options[:name]), :method => :get, :id => "#{grid.options[:name]}_filter", :class => "grid_filter" do
+  = hidden_field_tag 'grid_name', grid.options[:name], :class => "grid_name"
+  - if filter.include?(:date)
+    .date_filter
+      .date_from
+        %label{ :for => "#{grid.options[:name]}_date_filter" } From:
+        = place_date(grid, :from_date, session[:filter])
+      .date_to
+        %label{ :for => "#{grid.options[:name]}_date_filter" } To:
+        = place_date(grid, :to_date, session[:filter])
+  - if filter.include?(:text)
+    .text_filter
+      %label{ :for => "#{grid.options[:name]}_string_filter" } Text Filter:
+      = text_field_tag "#{grid.options[:name]}_string_filter", grid.options[:filtered] ? grid.options[:filtered][:by_string] : '', :size => 20, :maxlength => 200
+  = submit_tag 'Filter', :class => "filter_button"
+  = submit_tag 'Clear'
+%div{ :id => "#{grid.options[:name]}_filter_indicator" }= grid.options[:filtered] ? 'Filtered' : ''

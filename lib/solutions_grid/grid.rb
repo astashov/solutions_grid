@@ -1,5 +1,5 @@
-# Main class of the SolutionGrid plugin. It stores array of records (records can be 
-# ActiveRecord objects or simple hashes). It can execute different operations with
+# Main class of the SolutionGrid plugin. It stores array of records (ActiveRecord 
+# objects or simple hashes). It can construct SQL query with different operations with
 # these records, such as sorting and filtering. With help of GridHelper it can
 # show these records as table with sortable headers, show filters.
 class Grid
@@ -7,16 +7,15 @@ class Grid
   attr_accessor :view
   attr_reader :records, :options, :columns, :conditions, :values, :include, :order
   
-#  include SolutionsGrid::GridHelper
-#  include SolutionsGrid::Sort
-#  include SolutionsGrid::Filter
-  # To initialize grid, you should pass +records+ and +options+ as parameters.
-  # +Records+ can be ActiveRecord objects or just simple hashes. +Options+ change
-  # default options, it is not required parameter.
-  # 
+  # To initialize grid, you should pass and +options+ as parameter.
   # 
   # == Options
-  # * <tt>:name</tt> - set name if there are more than one grid on the page. It's <b>required</b> parameter.
+  # 
+  # === Required
+  #
+  # These options you *must* to set 
+  # * <tt>:name</tt> - set name of the grid. This parameter will be used for storing
+  #                    sorted and filtered info if there are more than one grid on the page. 
   # * <tt>:model</tt> - set model. It will be used for constructing column names,
   #                     if columns is not specified obviously and there are no records
   #                     specified for displaying. 

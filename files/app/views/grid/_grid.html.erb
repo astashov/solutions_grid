@@ -1,0 +1,6 @@
+<div id="<%= grid.options[:name] + "_spinner" %>"></div>
+<div id="<%= grid.options[:name] + "_grid" %>"> 
+  <%= render :partial => 'grid/filter', :locals => { :grid => grid, :filter => filter } unless filter.empty? %>
+  <%= render :partial => 'grid/table', :locals => { :grid => grid } %>
+  <%= grid.view[:paginate] %>
+</div>

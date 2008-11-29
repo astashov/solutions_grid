@@ -1,0 +1,14 @@
+<table class="grid">
+  <tr class="header">
+    <% grid.view[:headers].each do |header| -%>
+      <th><%= header %></th>
+    <% end -%>
+  </tr>
+  <% grid.view[:records].each do |record| -%>
+    <tr>
+      <% record.each do |value| -%>
+        <td><%= value %></td>
+      <% end -%>
+    </tr>
+  <% end -%>
+</table>

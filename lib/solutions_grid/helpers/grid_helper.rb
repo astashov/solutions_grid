@@ -22,7 +22,7 @@ module SolutionsGrid
 
       prepare_paginate(grid)
       
-      render :partial => 'grid/grid.html.haml', :locals => { :grid => grid, :filter => filter }
+      render :partial => 'grid/grid', :locals => { :grid => grid, :filter => filter }
     end
     
     
