@@ -42,9 +42,9 @@ Also, there are optional additional features:
      files/public/javascripts/solutions_grid.js to your javascript directory
      and add to your layout:
 
-    = javascript_include_tag "jquery"
-    = javascript_include_tag "jquery.livequery"
-    = javascript_include_tag "solutions_grid"
+    javascript_include_tag "jquery"
+    javascript_include_tag "jquery.livequery"
+    javascript_include_tag "solutions_grid"
 
      It will add AJAXed sorting and filtering to your grid.
 
