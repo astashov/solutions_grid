@@ -128,24 +128,5 @@ module SolutionsGrid
         select_date(default_date, :order => [:year, :month, :day], :prefix => prefix, :include_blank => true)
       end
       
-#      def add_select_tags(grid)
-#        prefix = set_name_prefix(grid)
-#        type = grid.options[:type_of_date_filtering]
-#        klass = (type == :datetime) ? DateTime : type.to_s.camelize.constantize
-#        output = "<label for=\"date_filter\">#{klass.to_s} Filter:</label><br />"
-#        now = klass.today rescue klass.now
-#        
-#        from_date = grid.convert_to_date(grid.options[:filtered][:from_date], type) rescue now
-#        to_date = grid.convert_to_date(grid.options[:filtered][:to_date], type) rescue now
-#        helper_name = "select_#{type}".to_sym
-#        
-#        output += send(helper_name, from_date, :prefix => "#{prefix}from_date") + "<br />"
-#        output += send(helper_name, to_date, :prefix => "#{prefix}to_date") + "<br />"
-#        output
-#      end
-#      
-#      def set_name_prefix(grid)
-#        grid.options[:name] + "_"
-#      end
   end
 end
