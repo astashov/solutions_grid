@@ -110,6 +110,7 @@ module SolutionsGrid
         if grid.options[:paginate]
           additional_params = {:class => "grid_pagination", :id => "#{grid.options[:name]}_grid_pagination"}
           additional_params[:param_name] = "#{grid.options[:name]}_page"
+          additional_params[:params] = { :grid => grid.options[:name] }
           grid.view[:paginate] = will_paginate(grid.records, additional_params)
         else
           grid.view[:paginate] = ""
