@@ -40,6 +40,7 @@ class GridController < ApplicationController
     name = params[:grid_name].to_sym
     session[:filter] ||= {}
     session[:filter][name] ||= {}
+    session[:page].delete(name) if session[:page]
     if params[:commit] == 'Clear'
       session[:filter][name] = nil
       flash[:notice] = "Filter was cleared"

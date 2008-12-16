@@ -36,6 +36,10 @@ For using of this plugin, you should do 3 steps:
   3. Create 'grid/grid' partial in your app/views directory with template of the grid
      (you can find examples in files/app/views/grid directory)
 
+  4. Add plugin's routes to your routes.rb
+    
+    map.grid_routes
+
 Also, there are optional additional features:
 
   4. Get jquery and livequery javascript libraries. Copy 
