@@ -91,9 +91,9 @@ module SolutionsGrid
               belonged_model, belonged_column = grid.get_belonged_model_and_column(column)
               association = grid.get_association(belonged_model)
               associated_record = record.send(association)
-              associated_record.respond_to?(belonged_column) ? associated_record.send(belonged_column) : ""
+              associated_record.respond_to?(belonged_column) ? h(associated_record.send(belonged_column)) : ""
             else
-              record.send(column)
+              h(record.send(column))
             end
           end
           
