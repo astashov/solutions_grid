@@ -45,13 +45,15 @@ class GridController < ApplicationController
       session[:filter][name] = nil
       flash[:notice] = "Filter was cleared"
     else
-      from_date = params[(name.to_s + '_from_date').to_sym]
-      to_date = params[(name.to_s + '_to_date').to_sym]
-      by_string = params[(name.to_s + '_string_filter').to_sym] || ""
+      from_date = params.delete((name.to_s + '_from_date').to_sym)
+      to_date = params.delete((name.to_s + '_to_date').to_sym)
       session[:filter][name][:from_date] = from_date
       session[:filter][name][:to_date] = to_date
-      session[:filter][name][:by_string] = by_string
-      flash[:notice] = "Data was filtered by #{CGI.escapeHTML(by_string).humanize}"
+      params.each do |key, value|
+        name_match = key.match(/#{name.to_s}_(.*)_filter/)
+        session[:filter][name][name_match[1].to_sym] = value || "" if name_match
+      end
+      flash[:notice] = "Data was filtered"
     end
     
     respond_to do |format|

@@ -27,7 +27,7 @@ class Grid
   # 
   # 1. <tt>[:columns][:sort]</tt> 
   #    Pass columns you need to allow sorting. Default is columns to show.
-  # 2. <tt>[:columns][:filter][:by_string]</tt>
+  # 2. <tt>[:columns][:filter][something]</tt>
   #    Pass columns you need to allow filtering by string.
   # 3. <tt>[:columns][:filter][:by_date]</tt>
   #    Pass columns you need to allow filtering by date.
@@ -43,13 +43,28 @@ class Grid
   #    [:sorted] = { :by_column => "name", :order => "asc" }
   # 6. <tt>[:filtered]</tt>
   #    Pass hash with parameters:
-  #     * <tt>[:filtered][:by_string]</tt> 
-  #       If you pass string, all 'filtered by string' columns will be filtered by this string
-  #     * <tt>[:filtered][:from_date]</tt> and [:filtered][:end_date]
+  #     * <tt>[:filtered][:from_date] and [:filtered][:end_date]</tt>
   #       [:columns][:filter][:by_date] should have date that is in range
   #       of these dates (otherwise, it will not be in @records array).
   #       [:columns][:filter][:by_span_date] should have date range that intersects
   #       with range of these dates.
+  #     * <tt>[:filtered][something]</tt>
+  #       It should contain hash with parameters:
+  #       * <tt>[:text]</tt> - text you want to search
+  #       * <tt>[:strict] -> :strict or :match. If you specify :strict, it will
+  #         construct SQL WHERE query like 'something = 'value', if you specify
+  #         :match, it will construct like 'something LIKE '%value%'
+  #       * <tt>[:convert_id] -> if set to false, it will not convert columns
+  #         like 'content_item_id_body' to SQL WHERE queries like 
+  #         'content_items.body = 'value'. Default is true.
+  #       Example:
+  #         :model => Post
+  #         :columns => { :filter => { :by_text => %w{name body}, :by_article => %w{article_id} }
+  #         :filtered => { :by_text => { :text => "smthg", :type => :match },
+  #                      { :by_article => { :text => "artcl", :type => :strict }
+  #       will create SQL query like 
+  #       '((`posts`.`name` LIKE '%smthg%' OR `posts`.`body` LIKE '%smthg%') AND (`articles`.`name` = 'artcl')
+  #       
   # 7. <tt>[:conditions]</tt>, <tt>[:values]</tt>, <tt>[:include]</tt>, <tt>[:joins]</tt>
   #    You can pass additional conditions to grid's SQL query. E.g.,
   #    [:conditions] = "user_id = :user_id"
@@ -61,6 +76,8 @@ class Grid
   #    #find (i.e., you need will_paginate plugin). [:paginate] is a hash:
   #    [:paginate][:page] - page you want to see
   #    [:paginate][:per_page] - number of records per page
+  # 9. <tt>[:template]</tt>
+  #    What template use for displaying the grid. Default is 'grid/grid'
   # 
   #                                                                                                                                                            
   # == Default values of the options
@@ -197,6 +214,7 @@ class Grid
     @options[:include] = Array(options[:include]) || []
     @options[:joins] = options[:joins]
     @options[:paginate] = options[:paginate]
+    @options[:template] = options[:template] || 'grid/grid'
     
     options[:columns] ||= {}
     @columns = {}
@@ -215,14 +233,24 @@ class Grid
   
   
   def get_belonged_model_and_column(column)
-    belonged_column = column.match(/(.*)_id(.*)/)
-    if belonged_column && !belonged_column[2].blank?
-      column = belonged_column[2].gsub(/^(_)/, '')
-      [ belonged_column[1].camelize.constantize, column ]
-    elsif belonged_column && !belonged_column[1].blank?
-      [ belonged_column[1].camelize.constantize, 'name' ]
+    column_with_table = column.match(/(.*)\.(.*)/)
+    if column_with_table
+      table = column_with_table[1]
+      column = column_with_table[2]
+      return [ table, column ]
     else
-      [ nil, nil ]
+      position_match = column.index('_id')
+      if position_match
+        model = column[0..position_match - 1]
+        model_column = column[(position_match + 4)..-1]
+        if !model.blank? && !model_column.blank?
+          return [ model.camelize.constantize, model_column ]
+        elsif !model.blank? && model_column.blank?
+          return [ model.camelize.constantize, 'name' ]
+        end
+      else
+        return [ nil, nil ]
+      end
     end
   end
 
@@ -278,7 +306,7 @@ class Grid
       @conditions ||= []
       @values ||= {}
       if options
-        filter_by_string
+        filter_by_strings
         filter_by_date
       end
       @conditions << "(" + @options[:conditions] + ")" if @options[:conditions]
@@ -288,16 +316,28 @@ class Grid
     end
   
     
-    def filter_by_string
-      string = @options[:filtered] ? @options[:filtered][:by_string] : nil
-      return if string.blank?
-      conditions = []
-      Array(@columns[:filter][:by_string]).each do |column|
-        table_with_column = get_correct_table_with_column(column)
-        conditions << "#{table_with_column} LIKE :#{column}"
-        @values[column.to_sym] = "%#{string}%"
+    def filter_by_strings
+      filters = @options[:filtered].dup
+      filter_conditions = []
+      filters.each do |name, filter|
+        string = filter ? filter[:text] : nil
+        next if string.blank?
+        conditions = []
+        Array(@columns[:filter][name]).each do |column|
+          convert_to_belonged_model = filter.has_key?(:convert_id) ? filter[:convert_id] : true
+          table_with_column = get_correct_table_with_column(column, convert_to_belonged_model)
+          column = column.match(/\.(.*)/)[1] if column.match(/\.(.*)/)
+          if filter[:type] == :strict
+            conditions << "#{table_with_column} = :#{column}"
+            @values[column.to_sym] = string
+          else
+            conditions << "#{table_with_column} LIKE :#{column}"
+            @values[column.to_sym] = "%#{string}%"
+          end
+        end
+        filter_conditions << "(" + conditions.join(" OR ") + ")"
       end
-      @conditions << "(" + conditions.join(" OR ") + ")"
+      @conditions << "(" + filter_conditions.join(" AND ") + ")" unless filter_conditions.empty?
     end
     
     
@@ -335,14 +375,19 @@ class Grid
   
     
     
-    def get_correct_table_with_column(column)
+    def get_correct_table_with_column(column, convert_to_belonged_model = true)
       belonged_model, belonged_column = get_belonged_model_and_column(column)
           
-      if belonged_model
+      if belonged_model && convert_to_belonged_model
         by_column = ActiveRecord::Base.connection.quote_column_name(belonged_column)
-        association = get_association(belonged_model)
-        @include << association unless @include.include?(association)
-        return "#{belonged_model.table_name}.#{by_column}"
+        unless belonged_model.is_a?(String)
+          association = get_association(belonged_model)
+          @include << association unless @include.include?(association)
+          return "#{belonged_model.table_name}.#{by_column}"
+        else
+          by_model = ActiveRecord::Base.connection.quote_column_name(belonged_model)
+          return "#{by_model}.#{by_column}"
+        end
       else
         by_column = ActiveRecord::Base.connection.quote_column_name(column)
         return "#{@options[:model].table_name}.#{by_column}"

@@ -4,14 +4,16 @@ describe Grid do
   
   before do
     @category = mock_model(CategoryExample, :name => "somecategory", :description => "category description")
-    @feed = mock_model(FeedExample, :name => "somefeed", :category_id => @category.id, :category => @category, :restricted => false, :description => "Description")
+    @feed = mock_model(FeedExample, :name => "somefeed", :category_example_id => @category.id, :category => @category, :restricted => false, :description => "Description")
     FeedExample.stub!(:find).and_return([@feed])
     FeedExample.stub!(:table_name).and_return("feeds")
-    set_column_names_and_hashes(FeedExample, :string => %w{name category_id restricted description})
+    CategoryExample.stub!(:find).and_return([@category])
+    CategoryExample.stub!(:table_name).and_return("categories")
+    set_column_names_and_hashes(FeedExample, :string => %w{name category_example_id restricted description})
     set_column_names_and_hashes(DateExample, :string => %w{description}, :date => %w{date})
     set_column_names_and_hashes(SpanDateExample, :string => %w{description}, :datetime => %w{start_datetime end_datetime})
     set_column_names_and_hashes(HABTMExample, :string => %w{description})
-    @columns = %w{name category_id restricted}
+    @columns = %w{name category_example_id restricted}
   end
   
   describe "common operations"  do
@@ -24,10 +26,10 @@ describe Grid do
     it "should not copy option 'columns to show' to 'columns to sort' or 'columns to filter' if they are specified" do
       grid = Grid.new(default_options({ :columns => {
         :show => @columns.dup, 
-        :filter => { :by_string => @columns.dup.delete_if {|column| column == 'category_id'}}, 
+        :filter => { :by_string => @columns.dup.delete_if {|column| column == 'category_example_id'}}, 
         :sort => @columns.dup.delete_if {|column| column == 'restricted'},
       }}))
-      grid.columns[:sort].all? { |c| %w{name category_id}.include?(c) }.should be_true
+      grid.columns[:sort].all? { |c| %w{name category_example_id}.include?(c) }.should be_true
       grid.columns[:filter][:by_string].all? { |c| %w{name restricted}.include?(c) }.should be_true
     end
     
@@ -37,12 +39,6 @@ describe Grid do
   
     it "should raise an error if model is not defined" do
       lambda { Grid.new() }.should raise_error(SolutionsGrid::ErrorsHandling::ModelIsNotDefined)
-    end
-
-    it "should raise an error if we try to filter by column that not included to 'show'" do
-      lambda do 
-        Grid.new(default_options.merge({ :columns => { :show => @columns, :filter => { :by_string => @columns + [ 'something' ]}}}))
-      end.should raise_error(SolutionsGrid::ErrorsHandling::ColumnIsNotIncludedToShow)
     end
 
     it "should raise an error if we try to sort by column that not included to 'show'" do
@@ -59,7 +55,7 @@ describe Grid do
     
     it "should raise an error when we trying to sort by column that forbidden to sort" do
       lambda do
-        Grid.new(default_options.merge(:columns => { :show => @columns, :sort => %w{category_id}}, :sorted => { :by_column => "name"}))
+        Grid.new(default_options.merge(:columns => { :show => @columns, :sort => %w{category_example_id}}, :sorted => { :by_column => "name"}))
       end.should raise_error(SolutionsGrid::ErrorsHandling::UnexistedColumn)
     end
     
@@ -99,23 +95,23 @@ describe Grid do
     end
 
     it "should sort records by calculated column (i.e, by feed category)" do
-      sort("category_id", 'asc') do |grid|
+      sort("category_example_id", 'asc') do |grid|
         grid.order.should == "categories.`name` ASC"
-        grid.include.should include(:category)
+        grid.include.should include(:category_example)
       end
     end
     
     it "should sort records by calculated column with specified name (i.e, by feed's category description)" do
-      sort("category_id_description", 'asc', { :columns => { :show => @columns + ['category_id_description']}}) do |grid|
+      sort("category_example_id_description", 'asc', { :columns => { :show => @columns + ['category_example_id_description']}}) do |grid|
         grid.order.should == "categories.`description` ASC"
-        grid.include.should include(:category)
+        grid.include.should include(:category_example)
       end
     end
     
     it "should sort records by calculated column (i.e, by feed category)" do
-      sort("category_id", 'asc') do |grid|
+      sort("category_example_id", 'asc') do |grid|
         grid.order.should == "categories.`name` ASC"
-        grid.include.should include(:category)
+        grid.include.should include(:category_example)
       end
     end
 
@@ -137,35 +133,94 @@ describe Grid do
   
     it "should filter by usual column" do
       usual_filter('junk') do |grid|
-        grid.conditions.should == '(feeds.`name` LIKE :name OR categories.`name` LIKE :category_id OR categories.`description` LIKE :category_id_description)'
-        grid.values.keys.all? {|k| [ :name, :category_id, :category_id_description ].include?(k) }.should be_true
+        grid.conditions.should == '((feeds.`name` LIKE :name OR categories.`name` LIKE :category_example_id OR categories.`description` LIKE :category_example_id_description))'
+        grid.values.keys.all? {|k| [ :name, :category_example_id, :category_example_id_description ].include?(k) }.should be_true
         grid.values[:name].should == '%junk%'
-        grid.include.should == [ :category ]
+        grid.include.should == [ :category_example ]
       end
+    end
+    
+    it "should filter by some usual columns" do
+      grid = Grid.new(default_options(
+        :columns => {
+          :show => @columns + [ "category_example_id_description" ],
+          :filter => { 
+            :by_string => %w{name category_example_id_description},
+            :by_category_example_id => %w{category_example_id}
+          }
+        },
+        :filtered => { :by_string => { :text => "junk", :type => :match }, :by_category_example_id => { :text => "4", :type => :strict, :convert_id => false } }
+      ))
+      grid.conditions.split(" AND ").all? do |a|
+        [
+          '((feeds.`name` LIKE :name OR categories.`description` LIKE :category_example_id_description)',
+          '(feeds.`category_example_id` = :category_example_id))'
+        ].should include(a)
+      end
+      grid.values.keys.all? {|k| [ :name, :category_example_id, :category_example_id_description ].include?(k) }.should be_true
+      grid.values[:name].should == '%junk%'
+      grid.values[:category_example_id].should == '4'
+      grid.include.should == [ :category_example ]
+    end
+    
+    it "should filter by belonged column that contains _id" do
+      grid = Grid.new(default_options(
+        :columns => {
+          :show => @columns + [ "category_example_id_description_id" ],
+          :filter => { 
+            :by_string => %w{name},
+            :by_category_example_id => %w{category_example_id_description_id}
+          }
+        },
+        :filtered => { :by_string => { :text => "junk", :type => :match }, :by_category_example_id => { :text => "4", :type => :strict } }
+      ))
+      grid.conditions.should == "((feeds.`name` LIKE :name) AND (categories.`description_id` = :category_example_id_description_id))"
+      grid.values.keys.all? {|k| [ :name, :category_example_id, :category_example_id_description_id ].include?(k) }.should be_true
+      grid.values[:name].should == '%junk%'
+      grid.values[:category_example_id_description_id].should == '4'
+      grid.include.should == [ :category_example ]
+    end
+    
+    it "should filter by table.column if dot is presented" do
+      grid = Grid.new(default_options(
+        :columns => {
+          :show => @columns + [ "category_example_id" ],
+          :filter => { 
+            :by_string => %w{name},
+            :by_category_example_id => %w{category_examples.description_id}
+          }
+        },
+        :filtered => { :by_string => { :text => "junk", :type => :match }, :by_category_example_id => { :text => "4", :type => :strict } }
+      ))
+      grid.conditions.should == "((feeds.`name` LIKE :name) AND (`category_examples`.`description_id` = :description_id))"
+      grid.values.keys.all? {|k| [ :name, :description_id ].include?(k) }.should be_true
+      grid.values[:name].should == '%junk%'
+      grid.values[:description_id].should == '4'
+      grid.include.should == [ :category_example ]
     end
     
     it "should filter with user-defined conditions" do
       grid = Grid.new(default_options(
         :columns => {
           :show => @columns,
-          :filter => { :by_string => %w{name category_id} }
+          :filter => { :by_string => %w{name category_example_id} }
         },
-        :filtered => { :by_string => 'smt' }, 
+        :filtered => { :by_string => { :text => 'smt', :type => :match } }, 
         :conditions => "feeds_partners.partner_id = :partner_id",
         :values => { :partner_id => 1 },
         :include => [ :partners ]
       ))
-      grid.conditions.should == '(feeds.`name` LIKE :name OR categories.`name` LIKE :category_id) AND (feeds_partners.partner_id = :partner_id)'
-      grid.values.keys.all? {|k| [ :name, :category_id, :partner_id ].include?(k) }.should be_true
+      grid.conditions.should == '((feeds.`name` LIKE :name OR categories.`name` LIKE :category_example_id)) AND (feeds_partners.partner_id = :partner_id)'
+      grid.values.keys.all? {|k| [ :name, :category_example_id, :partner_id ].include?(k) }.should be_true
       grid.values[:partner_id].should == 1
-      grid.include.should == [ :category, :partners ]
+      grid.include.should == [ :category_example, :partners ]
     end
 
     it "should save all records when usual filter is empty" do
       usual_filter('') do |grid|
         grid.conditions.should == ''
         grid.values.should == {}
-        grid.include.should == [:category]
+        grid.include.should == [:category_example]
       end
     end
 
@@ -226,9 +281,9 @@ describe Grid do
       grid = Grid.new(default_options.merge(
           :model => DateExample,
           :columns => { :show => %w{start_date end_date description}, :filter => { :by_string => [ 'description' ], :by_span_date => [ %w{start_date end_date} ] }},
-          :filtered => { :by_string => "text", :from_date => { :year => "2008", :day => "12" }, :to_date => { :year => "2008", :day => "16" } }
+          :filtered => { :by_string => {:text => "text", :type => :match }, :from_date => { :year => "2008", :day => "12" }, :to_date => { :year => "2008", :day => "16" } }
       ))
-      grid.conditions.should == "(date_examples.`description` LIKE :description) AND (date_examples.`start_date` <= :start_date_to_date AND date_examples.`end_date` >= :end_date_from_date)"
+      grid.conditions.should == "((date_examples.`description` LIKE :description)) AND (date_examples.`start_date` <= :start_date_to_date AND date_examples.`end_date` >= :end_date_from_date)"
       grid.values.keys.all? {|k| [:end_date_from_date, :description, :start_date_to_date].include?(k) }.should be_true
       grid.values[:end_date_from_date].should == DateTime.civil(2008, 1, 12)
       grid.include.should == [ ]
@@ -247,10 +302,10 @@ describe Grid do
     raise "Block should be given" unless block_given?
     grid = Grid.new(default_options(
       :columns => {
-        :show => @columns + [ "category_id_description" ],
-        :filter => { :by_string => %w{name category_id category_id_description} }
+        :show => @columns + [ "category_example_id_description" ],
+        :filter => { :by_string => %w{name category_example_id category_example_id_description} }
       },
-      :filtered => { :by_string => by_string }
+      :filtered => { :by_string => { :text => by_string, :type => :match } }
     ))
     yield(grid)
   end
@@ -261,8 +316,8 @@ describe Grid do
       :model => FeedExample,
       :columns => {
         :show => @columns.dup,
-        :sort => %w{name category_id},
-        :filter => {:by_string => %w{name category_id}}
+        :sort => %w{name category_example_id},
+        :filter => {:by_string => %w{name category_example_id}}
       }
     }.merge(options)
   end

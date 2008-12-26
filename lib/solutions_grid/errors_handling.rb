@@ -4,7 +4,7 @@ module SolutionsGrid::ErrorsHandling
     verify_that_model_is_specified
     verify_that_name_is_specified
     verify_that_columns_for_show_are_defined
-    verify_that_sort_and_filter_columns_are_included_to_show_columns
+    verify_that_sort_columns_are_included_to_show_columns
     verify_that_there_are_no_unexisted_actions
     verify_that_column_to_sort_is_included_to_sort_columns
     
@@ -29,13 +29,8 @@ module SolutionsGrid::ErrorsHandling
       raise ColumnsForShowAreNotDefined, "You should define columns to show" unless @columns[:show] || !@columns[:show].empty?
     end
 
-    def verify_that_sort_and_filter_columns_are_included_to_show_columns
+    def verify_that_sort_columns_are_included_to_show_columns
       check_column_including(@columns[:sort])
-      if @columns[:filter]
-        @columns[:filter].each do |key, columns|
-          check_column_including(columns)
-        end
-      end
     end
 
     def verify_that_there_are_no_unexisted_actions

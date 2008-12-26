@@ -5,11 +5,13 @@ describe SolutionsGrid::GridHelper do
   
   before do
     @category = mock_model(CategoryExample, :name => "somecategory")
-    @feed = mock_model(FeedExample, :name => "somefeed", :category_id => @category.id, 
-      :category => @category, :restricted => false, :descriptions => "Desc")
+    @feed = mock_model(FeedExample, :name => "somefeed", :category_example_id => @category.id, 
+      :category_example => @category, :restricted => false, :descriptions => "Desc")
     FeedExample.stub!(:find).and_return([@feed])
     FeedExample.stub!(:table_name).and_return("feeds")
-    set_column_names_and_hashes(FeedExample, :string => %w{name category_id restricted description})
+    CategoryExample.stub!(:find).and_return([@category])
+    CategoryExample.stub!(:table_name).and_return("category_examples")
+    set_column_names_and_hashes(FeedExample, :string => %w{name category_example_id restricted description})
     set_column_names_and_hashes(DateExample, :string => %w{description}, :date => %w{date})
     set_column_names_and_hashes(SpanDateExample, :string => %w{description}, :datetime => %w{start_datetime end_datetime})
     helper.stub!(:render)
@@ -35,7 +37,7 @@ describe SolutionsGrid::GridHelper do
       end
     end
     
-    grid = Grid.new({ :columns => {:show => %w{name category_id}}, :name => 'feed_examples', :model => FeedExample})
+    grid = Grid.new({ :columns => {:show => %w{name category_example_id}}, :name => 'feed_examples', :model => FeedExample})
     helper.show_grid(grid)
     grid.view[:headers].should include('<a href="http://test.host/grid/feed_examples/sort_by/name" class="sorted">Name</a>')
     grid.view[:records][0][0].should match(/a href=\"\/feed_example\/edit\/\d+\">somefeed<\/a>/)
@@ -57,7 +59,7 @@ describe SolutionsGrid::GridHelper do
         { :key => "Edit", :value => value }
       end
     end
-    grid = Grid.new({ :columns => {:show => %w{name category_id}}, :actions => [ 'edit' ], :name => 'feed_examples', :model => FeedExample})
+    grid = Grid.new({ :columns => {:show => %w{name category_example_id}}, :actions => [ 'edit' ], :name => 'feed_examples', :model => FeedExample})
     helper.show_grid(grid)
     grid.view[:headers].should include("Edit")
     grid.view[:records].should == [["somefeed", "somecategory", "<a href=\"/feed_examples/edit\">Edit</a>"]]
@@ -68,13 +70,13 @@ describe SolutionsGrid::GridHelper do
   end
 
   it "should display sorting up arrow (&#8595;) if sorted as 'asc'" do
-    grid = Grid.new({ :columns => {:show => %w{name category_id}}, :sorted => {:by_column => 'name', :order => 'asc'}, :name => 'feed_examples', :model => FeedExample})
+    grid = Grid.new({ :columns => {:show => %w{name category_example_id}}, :sorted => {:by_column => 'name', :order => 'asc'}, :name => 'feed_examples', :model => FeedExample})
     helper.show_grid(grid)
     grid.view[:headers].should include("<a href=\"http://test.host/grid/feed_examples/sort_by/name\" class=\"sorted\">Name</a> &#8595;")
   end
   
   it "should display sorting up arrow (&#8595;) if sorted as 'asc'" do
-    grid = Grid.new({ :columns => {:show => %w{name category_id}}, :sorted => {:by_column => 'name'}, :name => 'feed_examples', :model => FeedExample})
+    grid = Grid.new({ :columns => {:show => %w{name category_example_id}}, :sorted => {:by_column => 'name'}, :name => 'feed_examples', :model => FeedExample})
     helper.show_grid(grid)
     grid.view[:headers].should include("<a href=\"http://test.host/grid/feed_examples/sort_by/name\" class=\"sorted\">Name</a> &#8593;")
   end

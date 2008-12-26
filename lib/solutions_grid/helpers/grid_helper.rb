@@ -30,7 +30,7 @@ module SolutionsGrid
 
       prepare_paginate(grid)
       
-      render :partial => 'grid/grid', :locals => { :grid => grid, :filter => filter }
+      render :partial => grid.options[:template], :locals => { :grid => grid, :filter => filter }
     end
     
     
