@@ -41,11 +41,11 @@ describe Grid do
       lambda { Grid.new() }.should raise_error(SolutionsGrid::ErrorsHandling::ModelIsNotDefined)
     end
 
-    it "should raise an error if we try to sort by column that not included to 'show'" do
-      lambda do 
-        Grid.new(default_options.merge({ :columns => { :show => @columns, :sort => @columns + [ 'something' ]}}))
-      end.should raise_error(SolutionsGrid::ErrorsHandling::ColumnIsNotIncludedToShow)
-    end
+#    it "should raise an error if we try to sort by column that not included to 'show'" do
+#      lambda do 
+#        Grid.new(default_options.merge({ :columns => { :show => @columns, :sort => @columns + [ 'something' ]}}))
+#      end.should raise_error(SolutionsGrid::ErrorsHandling::ColumnIsNotIncludedToShow)
+#    end
 
     it "should raise an error if we try show unexisted action" do
       lambda do 
@@ -53,11 +53,11 @@ describe Grid do
       end.should raise_error(SolutionsGrid::ErrorsHandling::UnexistedAction)
     end
     
-    it "should raise an error when we trying to sort by column that forbidden to sort" do
-      lambda do
-        Grid.new(default_options.merge(:columns => { :show => @columns, :sort => %w{category_example_id}}, :sorted => { :by_column => "name"}))
-      end.should raise_error(SolutionsGrid::ErrorsHandling::UnexistedColumn)
-    end
+#    it "should raise an error when we trying to sort by column that forbidden to sort" do
+#      lambda do
+#        Grid.new(default_options.merge(:columns => { :show => @columns, :sort => %w{category_example_id}}, :sorted => { :by_column => "name"}))
+#      end.should raise_error(SolutionsGrid::ErrorsHandling::UnexistedColumn)
+#    end
     
 #    it "should raise an error when :filter_by_span_date contains not 2 dates" do
 #      span_dates = create_ten_span_date_mocks
