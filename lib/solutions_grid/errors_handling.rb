@@ -4,9 +4,9 @@ module SolutionsGrid::ErrorsHandling
     verify_that_model_is_specified
     verify_that_name_is_specified
     verify_that_columns_for_show_are_defined
-    verify_that_sort_columns_are_included_to_show_columns
+    #verify_that_sort_columns_are_included_to_show_columns
     verify_that_there_are_no_unexisted_actions
-    verify_that_column_to_sort_is_included_to_sort_columns
+    #verify_that_column_to_sort_is_included_to_sort_columns
     
 #    if @options[:filtered] && @options[:filtered][:from_date] && @options[:filtered][:to_date]
 #      verify_that_date_from_less_than_date_to(@options[:filtered][:from_date], @options[:filtered][:to_date])

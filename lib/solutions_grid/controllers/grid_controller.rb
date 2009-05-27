@@ -1,4 +1,5 @@
 class GridController < ApplicationController
+  unloadable
   
   def sort
     raise "You don't specify column to sort" unless params[:column]

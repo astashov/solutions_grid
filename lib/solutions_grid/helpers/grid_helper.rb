@@ -40,7 +40,7 @@ module SolutionsGrid
       # /helpers/attributes/'something'.rb too or just humanized.
       def prepare_headers_of_values(grid)
         grid.view[:headers] ||= []
-        grid.columns[:show].each do |column|
+        grid.columns[:sort].each do |column|
           
           show_value = case
           when self.class.instance_methods.include?(grid.options[:name] + "_" + column)
@@ -51,11 +51,7 @@ module SolutionsGrid
             column.humanize
           end
           
-          show_value = if grid.columns[:sort].include?(column)
-            link_to(h(show_value), sort_url(:column => column, :grid_name => grid.options[:name]), :class => "sorted")
-          else
-            h(show_value)
-          end
+          show_value = link_to(h(show_value), sort_url(:column => column, :grid_name => grid.options[:name]), :class => "sorted")
           
           if grid.options[:sorted] && grid.options[:sorted][:by_column] == column
             show_value += grid.options[:sorted][:order] == 'asc' ? " &#8595;" : " &#8593;"

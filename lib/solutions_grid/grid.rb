@@ -65,12 +65,13 @@ class Grid
   #       will create SQL query like 
   #       '((`posts`.`name` LIKE '%smthg%' OR `posts`.`body` LIKE '%smthg%') AND (`articles`.`name` = 'artcl')
   #       
-  # 7. <tt>[:conditions]</tt>, <tt>[:values]</tt>, <tt>[:include]</tt>, <tt>[:joins]</tt>
+  # 7. <tt>[:conditions]</tt>, <tt>[:values]</tt>, <tt>[:include]</tt>, <tt>[:joins]</tt>, <tt>[:select]
   #    You can pass additional conditions to grid's SQL query. E.g.,
   #    [:conditions] = "user_id = :user_id"
   #    [:values] = { :user_id => "1" }
   #    [:include] = [ :user ]
-  #    will select and add to @records only records of user with id = 1.
+  #    [:select] = "id"
+  #    will select and add to @records only ids of records of user with id = 1.
   # 8. <tt>[:paginate]</tt>
   #    If you pass [:paginate] parameter, #paginate method will be used instead of
   #    #find (i.e., you need will_paginate plugin). [:paginate] is a hash:
@@ -213,6 +214,7 @@ class Grid
     @options[:values] = options[:values] || {}
     @options[:include] = Array(options[:include]) || []
     @options[:joins] = options[:joins]
+    @options[:select] = options[:select]
     @options[:paginate] = options[:paginate]
     @options[:template] = options[:template] || 'grid/grid'
     
@@ -224,6 +226,7 @@ class Grid
     
     @options[:sorted] = options[:sorted]
     @options[:filtered] = options[:filtered]
+    @options[:sphinx] = options[:sphinx]
     
     check_for_errors
     
@@ -273,6 +276,10 @@ class Grid
   private
   
     def get_records
+      @options[:sphinx] ? get_sphinx_records : get_usual_records
+    end
+  
+    def get_usual_records
       @include ||= []
       method = @options[:paginate] ? :paginate : :find
       conditions = {}
@@ -282,6 +289,7 @@ class Grid
       @include += @options[:include]
       conditions[:include] = @include
       conditions[:joins] = @options[:joins] if @options[:joins]
+      conditions[:select] = @options[:select] if @options[:select]
       if @options[:paginate]
         method = :paginate
         conditions.merge!(@options[:paginate])
@@ -290,6 +298,44 @@ class Grid
       end
       
       @options[:model].send(method, :all, conditions)
+    end
+    
+    
+    def get_sphinx_records
+      options = {}
+      value = ''
+      @options[:filtered].each do |key, filter|
+        if !filter[:from].blank? || !filter[:to].blank?
+          options[:with] ||= {}
+          unless filter[:from]['year'].blank?
+            from_year = "%04d" % filter[:from]['year'].to_i
+            from_month = "%02d" % filter[:from]['month'].to_i
+            from_day = "%02d" % filter[:from]['day'].to_i
+            from_date = (from_year + from_month + from_day).to_i
+          end
+          unless filter[:to]['year'].blank?
+            to_year = "%04d" % filter[:to]['year'].to_i
+            to_month = "%02d" % filter[:to]['month'].to_i
+            to_day = "%02d" % filter[:to]['day'].to_i
+            to_date = (to_year + to_month + to_day).to_i
+          end
+          options[:with][key] = (from_date || 0)..(to_date || 100000000)
+        elsif filter[:type] == :strict && !filter[:text].blank?
+          options[:with] ||= {}
+          options[:with][key] = filter[:text]
+        elsif filter[:type] == :match && !filter[:text].blank?
+          options[:conditions] ||= {}
+          options[:conditions][key] = filter[:text]
+        end
+      end
+      options.merge!(@options[:paginate])
+      if @options[:sorted]
+        options.merge!(
+          :order => @options[:sorted][:by_column].to_sym, 
+          :sort_mode => (@options[:sorted][:order] == 'asc' ? :asc : :desc)
+        )
+      end
+      @options[:model].search(value, options)
     end
     
     
