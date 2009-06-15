@@ -52,7 +52,7 @@ class GridController < ApplicationController
       session[:filter][name][:to_date] = to_date
       params.each do |key, value|
         name_match = key.match(/#{name.to_s}_(.*)_filter/)
-        session[:filter][name][name_match[1].to_sym] = value || "" if name_match
+        session[:filter][name][name_match[1].to_sym] = (value || "") if name_match
       end
       flash[:notice] = "Data was filtered"
     end
