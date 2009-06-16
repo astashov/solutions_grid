@@ -1,6 +1,6 @@
 module SolutionsGrid::GetGrid
   def get_grid(options)
-    name = options[:model].to_s.underscore.pluralize
+    name = options[:name] || options[:model].to_s.underscore.pluralize
     session[:grid] ||= {}
     session[:grid][name] ||= {}
     session[:grid][name][:controller] = params[:controller]

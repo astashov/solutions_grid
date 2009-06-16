@@ -208,7 +208,7 @@ class Grid
     @options = options 
     check_for_errors
 
-    @options[:name] = options[:model].to_s.underscore.pluralize
+    @options[:name] ||= options[:model].to_s.underscore.pluralize
     @options[:actions] ||= []
     @options[:columns][:sort] ||= []
     @options[:columns][:filter] ||= []
