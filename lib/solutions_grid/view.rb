@@ -32,7 +32,6 @@ module SolutionsGrid::View
         else
           CGI::escapeHTML(column.humanize)
         end
-        da = @options[:view]
         
         if @options[:columns][:sort].include?(column)
           path = sort_path(:column => column, :grid_name => @options[:name])

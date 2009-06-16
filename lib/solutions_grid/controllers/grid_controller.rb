@@ -10,12 +10,12 @@ class GridController < ApplicationController
     session[:sort][name] ||= {}
     
     # If we sorted records by this column before, then just change sort order
-    if session[:sort][name][:by_column] && session[:sort][name][:by_column] == params[:column]
+    if session[:sort][name][:column] && session[:sort][name][:column] == params[:column]
       previous_order = session[:sort][name][:order]
       session[:sort][name][:order] = (previous_order == 'asc') ? 'desc' : 'asc'
     else
       session[:sort][name][:order] = 'asc'
-      session[:sort][name][:by_column] = params[:column]
+      session[:sort][name][:column] = params[:column]
     end
     flash[:notice] = "Data was sorted by #{CGI.escapeHTML(params[:column]).humanize}"
     

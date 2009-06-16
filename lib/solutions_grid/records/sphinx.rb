@@ -14,7 +14,7 @@ module SolutionsGrid::Records::Sphinx
 
         with = get_with(filter)
         conditions = get_conditions(filter)
-        order = get_order(@options[:sorted])
+        order = get_order(@options[:sort_values])
         paginate = @options[:paginate]
 
         if with
@@ -34,7 +34,7 @@ module SolutionsGrid::Records::Sphinx
 
     def get_with(filter)
       if !filter[:from].blank? || !filter[:to].blank?
-        date_options
+        date_options(filter)
       elsif filter[:type] == :strict && !filter[:text].blank?
         filter[:text]
       end
@@ -47,7 +47,7 @@ module SolutionsGrid::Records::Sphinx
     def get_order(sorted)
       if sorted
         {
-          :order => sorted[:by_column].to_sym, 
+          :order => sorted[:column].to_sym, 
           :sort_mode => (sorted[:order] == 'asc' ? :asc : :desc)
         }
       end
