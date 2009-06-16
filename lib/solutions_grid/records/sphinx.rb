@@ -54,18 +54,8 @@ module SolutionsGrid::Records::Sphinx
     end
 
     def date_options(filter)
-      unless filter[:from]['year'].blank?
-        from_year = "%04d" % filter[:from]['year'].to_i
-        from_month = "%02d" % filter[:from]['month'].to_i
-        from_day = "%02d" % filter[:from]['day'].to_i
-        from_date = (from_year + from_month + from_day).to_i
-      end
-      unless filter[:to]['year'].blank?
-        to_year = "%04d" % filter[:to]['year'].to_i
-        to_month = "%02d" % filter[:to]['month'].to_i
-        to_day = "%02d" % filter[:to]['day'].to_i
-        to_date = (to_year + to_month + to_day).to_i
-      end
+      from_date = convert_date_to_integer(filter[:from])
+      to_date = convert_date_to_integer(filter[:to])
       (from_date || 0)..(to_date || 100000000)
     end
 

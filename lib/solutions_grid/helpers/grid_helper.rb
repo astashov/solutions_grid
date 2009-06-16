@@ -13,15 +13,14 @@ module SolutionsGrid
     end
     
     
-    def place_date(grid, type, filter)
-      name = grid.options[:name]
-      default_date = if filter && filter[name.to_sym]
-        grid.get_date(filter[name.to_sym][type])
-      else
-        nil
+    def place_date(grid, type, postfix)
+      name = grid.options[:name].to_sym
+      date = session[:filter] && session[:filter][name] && session[:filter][name][type] && session[:filter][name][type][postfix]
+      if date && date['year']
+        date = Date.civil(date['year'].to_i, (date['month'] || 1).to_i, (date['day'] || 1).to_i) rescue nil
       end
-      prefix = name + "_" + type.to_s
-      select_date(default_date, :order => [:year, :month, :day], :prefix => prefix, :include_blank => true)
+      prefix = name.to_s + "_" + type.to_s + "_" + postfix.to_s + "_filter"
+      select_date(date, :order => [:year, :month, :day], :prefix => prefix, :include_blank => true)
     end
       
   end

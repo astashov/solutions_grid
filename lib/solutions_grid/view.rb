@@ -44,7 +44,7 @@ module SolutionsGrid::View
         
         headers << show_value
       end
-
+      
       headers_of_actions = @options[:actions].inject([]) do |headers, action|
         headers << send("action_" + action)[:key]
       end

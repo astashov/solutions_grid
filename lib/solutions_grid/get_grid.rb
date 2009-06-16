@@ -6,9 +6,20 @@ module SolutionsGrid::GetGrid
     session[:grid][name][:controller] = params[:controller]
     session[:grid][name][:action] = params[:action]
 
-    options[:filter_values].each do |filter_type, filter_options|
-      filter_text = session[:filter] && session[:filter][name.to_sym] && session[:filter][name.to_sym][filter_type]
-      filter_options[:text] = filter_text if filter_text
+    if options[:filter_values]
+      options[:filter_values].each do |filter_type, filter_options|
+        filter_value = session[:filter] && session[:filter][name.to_sym] && session[:filter][name.to_sym][filter_type] 
+        if filter_value
+          if filter_options[:type] == :range
+            filter_options[:value] = {
+              :to => filter_value[:to],
+              :from => filter_value[:from]
+            }
+          else
+            filter_options[:value] = filter_value
+          end
+        end
+      end
     end
 
     Grid.new({

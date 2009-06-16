@@ -38,21 +38,28 @@ class GridController < ApplicationController
   
   
   def filter
-    name = params[:grid_name].to_sym
+    grid_name = params[:grid_name].to_sym
     session[:filter] ||= {}
-    session[:filter][name] ||= {}
-    session[:page].delete(name) if session[:page]
+    session[:filter][grid_name] ||= {}
+    session[:page].delete(grid_name) if session[:page]
     if params[:commit] == 'Clear'
-      session[:filter][name] = nil
+      session[:filter][grid_name] = nil
       flash[:notice] = "Filter was cleared"
     else
-      from_date = params.delete((name.to_s + '_from_date').to_sym)
-      to_date = params.delete((name.to_s + '_to_date').to_sym)
-      session[:filter][name][:from_date] = from_date
-      session[:filter][name][:to_date] = to_date
       params.each do |key, value|
-        name_match = key.match(/#{name.to_s}_(.*)_filter/)
-        session[:filter][name][name_match[1].to_sym] = (value || "") if name_match
+        if value.is_a? Hash
+          if match = key.match(/#{grid_name.to_s}_(.*)_(to|from)_filter/)
+            filter_name = match[1].to_sym
+            range_type = match[2].to_sym
+            session[:filter][grid_name][filter_name] ||= {}
+            session[:filter][grid_name][filter_name][range_type] = (value || "")
+          end
+        else
+          if match = key.match(/#{grid_name.to_s}_(.*)_filter/)
+            filter_name = match[1].to_sym 
+            session[:filter][grid_name][filter_name] = (value || "") if filter_name
+          end
+        end
       end
       flash[:notice] = "Data was filtered"
     end
