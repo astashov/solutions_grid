@@ -2,16 +2,22 @@ module SolutionsGrid::Records::Paginate
 
   def get_paginate_records
     method = @options[:paginate] ? :paginate : :find
-    opts = paginate_options
-    @options[:model].send(method, :all, paginate_options)
+    options = paginate_options
+    @options[:filtered] = true unless options[:conditions].blank?
+    @options[:model].send(method, :all, options)
   end
 
 
   def paginate_options
     paginate_options = {}
+    # If some operation need additional association (sorting or filtering, for example),
+    # it will add the association to this array
+    @include = []
     paginate_options[:conditions] = filter_options if filter_options
     paginate_options[:order] = order_options if order_options
-    paginate_options[:include] = @options[:include] if @options[:include]
+    paginate_options[:include] = @include unless @include.empty?
+    paginate_options[:include] += @options[:include] if @options[:include] && paginate_options[:include]
+    paginate_options[:include].uniq! if paginate_options[:include]
     paginate_options[:joins] = @options[:joins] if @options[:joins]
     paginate_options[:select] = @options[:select] if @options[:select]
     paginate_options.merge!(@options[:paginate]) if @options[:paginate]
@@ -22,7 +28,9 @@ module SolutionsGrid::Records::Paginate
   def filter_options
     conditions = []
     values = {}
+
     conditions, values = columns_filters(conditions, values) if @options[:filter_values]
+
     conditions << "(" + @options[:conditions] + ")" if @options[:conditions]
     values.merge!(@options[:values]) if options[:values]
 
@@ -33,6 +41,7 @@ module SolutionsGrid::Records::Paginate
 
   def columns_filters(conditions, values)
     not_empty_filters = @options[:filter_values].select{ |filter, options| !options[:value].blank? }
+
     filter_conditions = not_empty_filters.inject([]) do |filter_conditions, filter_values|
       filter, options = filter_values
       column_conditions = Array(@options[:columns][:filter][filter]).inject([]) do |column_conditions, column|
@@ -41,6 +50,7 @@ module SolutionsGrid::Records::Paginate
       end
       filter_conditions << "(" + column_conditions.join(" OR ") + ")"
     end
+
     conditions << "(" + filter_conditions.join(" AND ") + ")" unless filter_conditions.empty?
     [ conditions, values ]
   end
@@ -70,10 +80,12 @@ module SolutionsGrid::Records::Paginate
 
 
   def order_options
-    return nil if !@options[:sort_values] || @options[:sort_values].empty?
-    order = (@options[:sort_values][:order] == 'asc') ? "ASC" : "DESC"
-    column = ActiveRecord::Base.connection.quote_column_name(@options[:sort_values][:column])
-    "#{@options[:model].table_name}.#{column} #{order}"
+    if @options[:sort_values] && !@options[:sort_values].empty?
+      order = (@options[:sort_values][:order] == 'asc') ? "ASC" : "DESC"
+      table, column = get_table_and_column(@options[:sort_values][:column])
+      column = ActiveRecord::Base.connection.quote_column_name(column)
+      "#{table}.#{column} #{order}"
+    end
   end
 
 end

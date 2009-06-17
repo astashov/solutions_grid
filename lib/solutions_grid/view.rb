@@ -12,7 +12,7 @@ module SolutionsGrid::View
   private      
 
     def include_user_specific_helpers
-      helper_module_name = @options[:name].camelize.to_s
+      helper_module_name = @options[:name].camelize
       model_helpers_module = "SolutionsGrid::#{helper_module_name}"
       if SolutionsGrid.const_defined?(helper_module_name)
         self.class.send(:include, model_helpers_module.constantize) 
@@ -60,11 +60,14 @@ module SolutionsGrid::View
           case
           when self.class.instance_methods.include?(method)
             send(method, record)[:value]
-          #when column =~ /_id/
-          #  belonged_model, belonged_column = grid.get_belonged_model_and_column(column)
-          #  association = grid.get_association(belonged_model)
-          #  associated_record = record.send(association)
-          #  associated_record.respond_to?(belonged_column) ? h(associated_record.send(belonged_column)) : ""
+          when column =~ /_id/
+            association, belonged_column = get_association_and_column(column)
+            associated_record = association ? record.send(association) : record
+            if associated_record && associated_record.respond_to?(belonged_column)
+              h(associated_record.send(belonged_column))
+            else
+              ""
+            end
           else
             CGI::escapeHTML(record.send(column).to_s)
           end

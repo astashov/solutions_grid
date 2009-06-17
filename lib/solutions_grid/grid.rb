@@ -217,18 +217,63 @@ class Grid
     @view = get_view
   end
 
-  def get_records
-    @options[:sphinx] ? get_sphinx_records : get_paginate_records
+
+  def filtered?
+    @options[:filter_values] && !@options[:filter_values].select do |key, value| 
+      if value[:type] == :range
+        from = value[:value] && value[:value][:from]
+        to = value[:value] && value[:value][:to]
+        (from && !from['year'].blank?) || (to && !to['year'].blank?)
+      else
+        !value[:value].blank?
+      end
+    end.empty?
   end
-  
-  def convert_date_hash_to_integer(date)
-    date.symbolize_keys!
-    unless date[:year].blank?
-      year = "%04d" % date[:year].to_i
-      month = "%02d" % date[:month].to_i
-      day = "%02d" % date[:day].to_i
-      date = (year + month + day).to_i
+
+
+  private
+
+    def get_records
+      @options[:sphinx] ? get_sphinx_records : get_paginate_records
     end
-  end
-      
+
+
+    def convert_date_hash_to_integer(date)
+      date.symbolize_keys!
+      unless date[:year].blank?
+        year = "%04d" % date[:year].to_i
+        month = "%02d" % date[:month].to_i
+        day = "%02d" % date[:day].to_i
+        date = (year + month + day).to_i
+      end
+    end
+
+
+    def get_association_and_column(column)
+      case
+      when association_with_column_match = column.match(/(.*)\.(.*)/)
+        association = association_with_column_match[1].singularize.to_sym
+        [ association, column_with_table[2] ]
+      when association_match = column.match(/(.*)_id/)
+        association = association_match[1].to_sym
+        [ association, 'name' ]
+      else
+        [ nil, column ]
+      end
+    end
+
+
+    def get_table_and_column(column)
+      association, column = get_association_and_column(column)
+      table = if association
+        @include << association unless @include.include?(association)
+        association.to_s.pluralize
+      else
+        @options[:model].table_name
+      end
+      [ table, column ]
+    end
+
+
+
 end 

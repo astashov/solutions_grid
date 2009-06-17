@@ -6,7 +6,7 @@ describe ApplicationController, "SolutionsGrid" do
   before do
     controller.instance_variable_set("@template", ActionView::Base.new([], {}, controller))
     @category = mock_model(CategoryExample, :name => "somecategory", :description => "category description")
-    @feed = mock_model(FeedExample, :name => "somefeed", :category_example_id => @category.id, :category => @category, :restricted => false, :description => "Description")
+    @feed = mock_model(FeedExample, :name => "somefeed", :category_example_id => @category.id, :category_example => @category, :restricted => false, :description => "Description")
     FeedExample.stub!(:table_name).and_return("feeds")
     CategoryExample.stub!(:table_name).and_return("categories")
     DateExample.stub!(:table_name).and_return("dates")
@@ -37,19 +37,19 @@ describe ApplicationController, "SolutionsGrid" do
       ).merge(options))
     end
 
-    it "should sort records by calculated column (i.e, by feed category)"# do
-#      sort("category_example_id", 'asc') do |grid|
-#        grid.order.should == "categories.`name` ASC"
-#        grid.include.should include(:category_example)
-#      end
-#    end
-#    
-#    it "should sort records by calculated column with specified name (i.e, by feed's category description)" do
-#      sort("category_example_id_description", 'asc', { :columns => { :show => @columns + ['category_example_id_description']}}) do |grid|
-#        grid.order.should == "categories.`description` ASC"
-#        grid.include.should include(:category_example)
-#      end
-#    end
+    it "should sort records by calculated column (i.e, by feed category)" do
+      FeedExample.should_receive(:find).with(
+        :all, 
+        :order => "category_examples.`name` ASC", 
+        :include => [ :category_example ]
+      ).and_return([@feed])
+      controller.get_grid(default_options.merge(
+        :sort_values => { 
+          :column => "category_example_id", 
+          :order => "asc"
+        }
+      ).merge(options))
+    end
     
     it "should sort by 'desc' if other is not specified" do
       controller.instance_variable_set("@template", ActionView::Base.new([], {}, controller))
@@ -71,6 +71,7 @@ describe ApplicationController, "SolutionsGrid" do
   
   end
   
+
   describe "filtering" do
   
     it "should filter by usual column with match type of search" do
@@ -86,6 +87,7 @@ describe ApplicationController, "SolutionsGrid" do
         :filter_values => { :text => { :type => :match } }
       ).merge(options))
     end
+
 
     it "should filter by usual column with strict type of search" do
       FeedExample.should_receive(:find).with(
@@ -199,26 +201,37 @@ describe ApplicationController, "SolutionsGrid" do
     end
 
   end
-    
-  
-  def sort(by_column, order = nil, options = {})
-    raise "Block should be given" unless block_given?
-    grid = Grid.new(default_options.merge(:sorted => { :by_column => by_column, :order => order}).merge(options))
-    yield(grid)
+
+
+  describe "viewing" do
+
+    before do
+      FeedExample.stub!(:find).and_return([@feed])
+    end
+
+    it "should prepare headers for viewing" do
+      grid = controller.get_grid(default_options.merge(
+        :columns => { :show => %w{name description}, :sort => %w{name} }
+      ))
+      grid.view[:headers].should == [
+        "<a href=\"/grid/feed_examples/sort_by/name\" class=\"sorted\">Name</a>", 
+        "Description"
+      ]
+    end
+
+    it "should prepare values for viewing" do
+      grid = controller.get_grid(default_options.merge( :columns => { :show => %w{name description} }))
+      grid.view[:values].should == [["somefeed", "Description"]]
+    end
+
+    it "should convert values of _id column to name of belonged model" do
+      grid = controller.get_grid(default_options)
+      grid.view[:values].should == [["somefeed", @category.name]]
+    end
+
   end
   
-  def usual_filter(by_string)
-    raise "Block should be given" unless block_given?
-    grid = Grid.new(default_options(
-      :columns => {
-        :show => @columns + [ "category_example_id_description" ],
-        :filter => { :by_string => %w{name category_example_id category_example_id_description} }
-      },
-      :filtered => { :by_string => { :value => by_string, :type => :match } }
-    ))
-    yield(grid)
-  end
-  
+
   def default_options(options = {})
     {
       :model => FeedExample,
@@ -229,21 +242,6 @@ describe ApplicationController, "SolutionsGrid" do
       },
       :paginate => nil
     }.merge(options)
-  end
-  
-  def default_date
-    Date.civil(2008, 10, 5)
-  end
-  
-  def default_datetime
-    DateTime.civil(2008, 10, 5, 15, 15, 0)
-  end
-  
-  
-  def filter_date_example_expectations
-    date = mock_model(DateExample, :start_date => default_date, :end_date => default_date + 3.months, :description => "Desc")
-    DateExample.should_receive(:find).and_return([date])
-    DateExample.stub!(:table_name).and_return("date_examples")
   end
   
 end
