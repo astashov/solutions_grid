@@ -48,7 +48,8 @@ module SolutionsGrid::Records::Paginate
         column_conditions, values = get_conditions_and_values(column_conditions, values, options, column)
         column_conditions
       end
-      filter_conditions << "(" + column_conditions.join(" OR ") + ")"
+      filter_conditions << "(" + column_conditions.join(" OR ") + ")" unless column_conditions.empty?
+      filter_conditions
     end
 
     conditions << "(" + filter_conditions.join(" AND ") + ")" unless filter_conditions.empty?
@@ -57,25 +58,38 @@ module SolutionsGrid::Records::Paginate
 
 
   def get_conditions_and_values(conditions, values, filter_options, column)
+    table, column = get_table_and_column_for_filtering(column)
     quoted_column = ActiveRecord::Base.connection.quote_column_name(column)
     case filter_options[:type]
     when :strict
-      conditions << "#{@options[:model].table_name}.#{quoted_column} = :#{column}"
+      conditions << "#{table}.#{quoted_column} = :#{column}"
       values[column.to_sym] = filter_options[:value]
     when :match
-      conditions << "#{@options[:model].table_name}.#{quoted_column} LIKE :#{column}"
+      conditions << "#{table}.#{quoted_column} LIKE :#{column}"
       values[column.to_sym] = "%#{filter_options[:value]}%"
     when :range
       if date = convert_date_hash_to_integer(filter_options[:value][:from])
-        conditions << "#{@options[:model].table_name}.#{quoted_column} >= :#{column}_from"
+        conditions << "#{table}.#{quoted_column} >= :#{column}_from"
         values[(column + "_from").to_sym] = date
       end
       if date = convert_date_hash_to_integer(filter_options[:value][:to])
-        conditions << "#{@options[:model].table_name}.#{quoted_column} <= :#{column}_to"
+        conditions << "#{table}.#{quoted_column} <= :#{column}_to"
         values[(column + "_to").to_sym] = date
       end
     end
     [ conditions, values ]
+  end
+
+
+  def get_table_and_column_for_filtering(column)
+    if table_with_column_match = column.match(/(.*)\.(.*)/)
+      table = table_with_column_match[1]
+      column = table_with_column_match[2]
+    else
+      table = @options[:model].table_name
+      column = column
+    end
+    [ table, column ]
   end
 
 
