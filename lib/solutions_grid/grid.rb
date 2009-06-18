@@ -219,6 +219,7 @@ class Grid
 
 
   def filtered?
+    # TODO: Maybe try 'any?'?
     @options[:filter_values] && !@options[:filter_values].select do |key, value| 
       if value[:type] == :range
         from = value[:value] && value[:value][:from]
@@ -236,6 +237,9 @@ class Grid
     def get_records
       @options[:sphinx] ? get_sphinx_records : get_paginate_records
     end
+
+
+    # Different helper methods:
 
 
     def convert_date_hash_to_integer(date)

@@ -5,18 +5,17 @@ describe ApplicationController, "SolutionsGrid" do
   
   before do
     controller.instance_variable_set("@template", ActionView::Base.new([], {}, controller))
-    @category = mock_model(CategoryExample, :name => "somecategory", :description => "category description")
-    @feed = mock_model(FeedExample, :name => "somefeed", :category_example_id => @category.id, :category_example => @category, :restricted => false, :description => "Description")
+    @columns = %w{name category_example_id}
+    @category = mock_model(CategoryExample, :name => "somecategory", 
+      :description => "category description")
+    @feed = mock_model(FeedExample, :name => "somefeed", 
+      :category_example_id => @category.id, :category_example => @category, 
+      :description => "Description")
     FeedExample.stub!(:table_name).and_return("feeds")
-    CategoryExample.stub!(:table_name).and_return("categories")
     DateExample.stub!(:table_name).and_return("dates")
-    set_column_names_and_hashes(FeedExample, :string => %w{name category_example_id restricted description})
-    set_column_names_and_hashes(DateExample, :string => %w{description}, :date => %w{date})
-    set_column_names_and_hashes(SpanDateExample, :string => %w{description}, :datetime => %w{start_datetime end_datetime})
-    set_column_names_and_hashes(HABTMExample, :string => %w{description})
-    @columns = %w{name category_example_id restricted}
   end
   
+
   describe "errors handling" do
   
     it "should raise an error if model is not defined" do
@@ -25,7 +24,8 @@ describe ApplicationController, "SolutionsGrid" do
 
   end
   
-  describe "sorting" do
+
+  describe "sorting by ActiveRecord" do
   
     it "should sort records by usual column (i.e, by feed name)" do
       FeedExample.should_receive(:find).with(:all, :order => "feeds.`name` ASC").and_return([@feed])
@@ -52,7 +52,6 @@ describe ApplicationController, "SolutionsGrid" do
     end
     
     it "should sort by 'desc' if other is not specified" do
-      controller.instance_variable_set("@template", ActionView::Base.new([], {}, controller))
       FeedExample.should_receive(:find).with(:all, :order => "feeds.`name` DESC").and_return([@feed])
       grid = controller.get_grid(default_options.merge(
         :sort_values => { :column => "name" }
@@ -72,7 +71,7 @@ describe ApplicationController, "SolutionsGrid" do
   end
   
 
-  describe "filtering" do
+  describe "filtering by ActiveRecord" do
   
     it "should filter by usual column with match type of search" do
       FeedExample.should_receive(:find).with(
@@ -88,7 +87,6 @@ describe ApplicationController, "SolutionsGrid" do
       ).merge(options))
     end
 
-
     it "should filter by usual column with strict type of search" do
       FeedExample.should_receive(:find).with(
         :all, 
@@ -103,7 +101,6 @@ describe ApplicationController, "SolutionsGrid" do
       ).merge(options))
     end
 
-    
     it "should filter by some usual columns" do
       FeedExample.should_receive(:find).with(
         :all, 
@@ -124,47 +121,35 @@ describe ApplicationController, "SolutionsGrid" do
         },
         :filter_values => { 
           :by_string => { :type => :match }, 
-          :by_category_example_id => { :type => :strict, :convert_id => false } 
+          :by_category_example_id => { :type => :strict } 
         }
       ))
     end
-    
-    it "should filter by belonged column that contains _id"# do
-#      grid = Grid.new(default_options(
-#        :columns => {
-#          :show => @columns + [ "category_example_id_description_id" ],
-#          :filter => { 
-#            :by_string => %w{name},
-#            :by_category_example_id => %w{category_example_id_description_id}
-#          }
-#        },
-#        :filtered => { :by_string => { :text => "junk", :type => :match }, :by_category_example_id => { :text => "4", :type => :strict } }
-#      ))
-#      grid.conditions.should == "((feeds.`name` LIKE :name) AND (categories.`description_id` = :category_example_id_description_id))"
-#      grid.values.keys.all? {|k| [ :name, :category_example_id, :category_example_id_description_id ].include?(k) }.should be_true
-#      grid.values[:name].should == '%junk%'
-#      grid.values[:category_example_id_description_id].should == '4'
-#      grid.include.should == [ :category_example ]
-#    end
-#    
-#    it "should filter by table.column if dot is presented" do
-#      grid = Grid.new(default_options(
-#        :columns => {
-#          :show => @columns + [ "category_example_id" ],
-#          :filter => { 
-#            :by_string => %w{name},
-#            :by_category_example_id => %w{category_examples.description_id}
-#          }
-#        },
-#        :filtered => { :by_string => { :text => "junk", :type => :match }, :by_category_example_id => { :text => "4", :type => :strict } }
-#      ))
-#      grid.conditions.should == "((feeds.`name` LIKE :name) AND (`category_examples`.`description_id` = :description_id))"
-#      grid.values.keys.all? {|k| [ :name, :description_id ].include?(k) }.should be_true
-#      grid.values[:name].should == '%junk%'
-#      grid.values[:description_id].should == '4'
-#      grid.include.should == [ :category_example ]
-#    end
-#    
+
+    it "should filter by table.column if dot is presented" do
+      FeedExample.should_receive(:find).with(
+        :all, 
+        :conditions => [
+          "((feeds.`name` LIKE :name) AND (category_examples.`description` = :description))", 
+          { :name => "%junk%", :description => "4" }
+        ]
+      ).and_return([@feed])
+      session[:filter] = { :feed_examples => { :by_string => "junk", :description => "4" } }
+      controller.get_grid(default_options.merge(
+        :columns => {
+          :show => @columns,
+          :filter => { 
+            :by_string => %w{name},
+            :description => %w{category_examples.description}
+          }
+        },
+        :filter_values => { 
+          :by_string => { :value => "junk", :type => :match }, 
+          :description => { :value => "4", :type => :strict } 
+        }
+      ))
+    end
+
     it "should filter with user-defined conditions" do
       FeedExample.should_receive(:find).with(
         :all, 
@@ -197,6 +182,121 @@ describe ApplicationController, "SolutionsGrid" do
         :model => DateExample,
         :columns => { :show => %w{date description}, :filter => { :date => %w{date} }},
         :filter_values => { :date => { :type => :range }}
+      ))
+    end
+
+  end
+
+
+  describe "sorting by Sphinx" do
+
+    it "should sort records by usual column (i.e, by feed name)" do
+      FeedExample.should_receive(:search).with('', :order => :name, :sort_mode => :asc).and_return([@feed])
+      controller.get_grid(default_options.merge(
+        :sort_values => { 
+          :column => "name", 
+          :order => "asc"
+        },
+        :sphinx => true
+      ).merge(options))
+    end
+
+    it "should sort records by calculated column (i.e, by feed category)" do
+      FeedExample.should_receive(:search).with('', :order => :category_example_name, :sort_mode => :asc).and_return([@feed])
+      controller.get_grid(default_options.merge(
+        :sort_values => { 
+          :column => "category_example_id", 
+          :order => "asc"
+        },
+        :sphinx => true
+      ).merge(options))
+    end
+    
+    it "should sort by 'desc' if other is not specified" do
+      FeedExample.should_receive(:search).with('', :order => :name, :sort_mode => :desc).and_return([@feed])
+      grid = controller.get_grid(default_options.merge(
+        :sort_values => { :column => "name" },
+        :sphinx => true
+      ).merge(options))
+    end
+    
+    it "should sort records by reverse order" do
+      FeedExample.should_receive(:search).with('', :order => :name, :sort_mode => :desc).and_return([@feed])
+      grid = controller.get_grid(default_options.merge(
+        :sort_values => { 
+          :column => "name", 
+          :order => "desc"
+        },
+        :sphinx => true
+      ).merge(options))
+    end
+
+  end
+
+
+  describe "filtering by Sphinx" do
+
+    it "should filter by usual column with match type of search" do
+      FeedExample.should_receive(:search).with('', :conditions => { :text => "junk" }).and_return([@feed])
+      session[:filter] = { :feed_examples => { :text => "junk" } }
+      controller.get_grid(default_options.merge(
+        :filter_values => { :text => { :type => :match } },
+        :sphinx => true
+      ).merge(options))
+    end
+
+    it "should filter by usual column with strict type of search" do
+      FeedExample.should_receive(:search).with('', :with => { :text => "junk" }).and_return([@feed])
+      session[:filter] = { :feed_examples => { :text => "junk" } }
+      controller.get_grid(default_options.merge(
+        :filter_values => { :text => { :type => :strict } },
+        :sphinx => true
+      ).merge(options))
+    end
+
+    it "should filter by some usual columns" do
+      FeedExample.should_receive(:search).with('', 
+        :with => { :by_category_example_id => "4" },
+        :conditions => { :by_string => "junk" }
+      ).and_return([@feed])
+      session[:filter] = { :feed_examples => { :by_string => "junk", :by_category_example_id => "4" } }
+      controller.get_grid(default_options.merge(
+        :filter_values => { 
+          :by_string => { :type => :match }, 
+          :by_category_example_id => { :type => :strict } 
+        },
+        :sphinx => true
+      ))
+    end
+
+    it "should filter with user-defined conditions" do
+      FeedExample.should_receive(:search).with('', 
+        :with => { :partner_id => "1" }
+      ).and_return([@feed])
+      controller.get_grid(default_options.merge(
+        :with => { :partner_id => "1" },
+        :sphinx => true
+      ))
+    end
+
+    it "should save all records when usual filter is empty" do
+      FeedExample.should_receive(:search).with('', {}).and_return([@feed])
+      controller.get_grid(default_options.merge(:sphinx => true))
+    end
+
+    it "should filter records by date" do
+      @date = mock_model(DateExample, :date => 20080101, :description => "date description")
+      DateExample.should_receive(:search).with('', 
+        :with => { :date => 20080600..20090000 }                                         
+      ).and_return([@date])
+      session[:filter] = { :date_examples => { :date => { 
+        :from => { :year => '2008', :month => '6' }, :to => { :year => '2009' }
+      }}}
+      controller.get_grid(default_options.merge(
+        :model => DateExample,
+        :columns => { :show => %w{date description}},
+        :filter_values => { :date => { :type => :range }},
+        :sphinx => true
       ))
     end
 

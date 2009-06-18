@@ -9,23 +9,26 @@ module SolutionsGrid::Records::Sphinx
   private
 
     def sphinx_options
-      sphinx_options = @options[:filter_values].inject({}) do |options, values|
-        key = values[0]
-        filter = values[1]
+      sphinx_options = {}
+      if @options[:filter_values]
+        sphinx_options = @options[:filter_values].inject({}) do |options, values|
+          key = values[0]
+          filter = values[1]
 
-        with = get_with(filter)
-        conditions = get_conditions(filter)
+          with = get_with(filter)
+          conditions = get_conditions(filter)
 
-        if with
-          options[:with] ||= {}
-          options[:with][key] = with
+          if with
+            options[:with] ||= {}
+            options[:with][key] = with
+          end
+          if conditions
+            options[:conditions] ||= {}
+            options[:conditions][key] = conditions
+          end
+
+          options
         end
-        if conditions
-          options[:conditions] ||= {}
-          options[:conditions][key] = conditions
-        end
-
-        options
       end
 
       if @options[:with]
