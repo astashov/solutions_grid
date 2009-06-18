@@ -4,7 +4,7 @@ module SolutionsGrid
     def grid_paginate(grid, options = {})
       name = grid.options[:name]
       options.merge!(
-        :class => "grid_pagination", 
+        :class => "grid-pagination", 
         :id => "#{name}_grid_pagination",
         :param_name => "#{name}_page",
         :params => { :grid => name }
