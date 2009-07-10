@@ -75,7 +75,11 @@ module SolutionsGrid::Records::Sphinx
     def date_options(filter)
       from_date = convert_date_hash_to_integer(filter[:from])
       to_date = convert_date_hash_to_integer(filter[:to])
-      (from_date || 0)..(to_date || 100000000)
+      if from_date || to_date
+        (from_date || 0)..(to_date || 100000000)
+      else
+        nil
+      end
     end
 
 end
