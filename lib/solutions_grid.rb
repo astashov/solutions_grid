@@ -11,9 +11,10 @@ module SolutionsGrid
     require "solutions_grid"
     require RAILS_ROOT + "/vendor/plugins/solutions_grid/lib/routes"
 
-    ActionController::Base.send(:helper, GridHelper)
+    ActionController::Base.send(:include, SolutionsGrid::GridHelper)
     ActionController::Base.send(:include, SolutionsGrid::GetGrid)
-    ActionView::Base.send :include, GridHelper
+    ActionView::Base.send(:include, SolutionsGrid::GridHelper)
+    ActionView::Base.send(:include, SolutionsGrid::Attributes)
   end
   
 end

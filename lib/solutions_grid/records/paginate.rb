@@ -70,14 +70,16 @@ module SolutionsGrid::Records::Paginate
         conditions << "#{table}.#{quoted_column} LIKE :#{column}"
         values[column.to_sym] = "%#{filter_options[:value]}%"
       when :range
+        date_conditions = []
         if date = convert_date_hash_to_integer(filter_options[:value][:from])
-          conditions << "#{table}.#{quoted_column} >= :#{column}_from"
+          date_conditions << "#{table}.#{quoted_column} >= :#{column}_from"
           values[(column + "_from").to_sym] = date
         end
         if date = convert_date_hash_to_integer(filter_options[:value][:to])
-          conditions << "#{table}.#{quoted_column} <= :#{column}_to"
+          date_conditions << "#{table}.#{quoted_column} <= :#{column}_to"
           values[(column + "_to").to_sym] = date
         end
+        conditions << date_conditions.join(" AND ") unless date_conditions.empty?
       end
       [ conditions, values ]
     end

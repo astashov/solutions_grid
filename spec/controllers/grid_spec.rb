@@ -171,7 +171,7 @@ describe ApplicationController, "SolutionsGrid" do
       DateExample.should_receive(:find).with(:all, {
         :conditions => 
           [
-            "((dates.`date` >= :date_from OR dates.`date` <= :date_to))", 
+            "((dates.`date` >= :date_from AND dates.`date` <= :date_to))", 
             { :date_from => 20080600, :date_to => 20090000 }
           ]
       }).and_return([@date])
@@ -301,35 +301,6 @@ describe ApplicationController, "SolutionsGrid" do
     end
 
   end
-
-
-  describe "viewing" do
-
-    before do
-      FeedExample.stub!(:find).and_return([@feed])
-    end
-
-    it "should prepare headers for viewing" do
-      grid = controller.get_grid(default_options.merge(
-        :columns => { :show => %w{name description}, :sort => %w{name} }
-      ))
-      grid.view[:headers].should == [
-        "<a href=\"/grid/feed_examples/sort_by/name\" class=\"sorted\">Name</a>", 
-        "Description"
-      ]
-    end
-
-    it "should prepare values for viewing" do
-      grid = controller.get_grid(default_options.merge( :columns => { :show => %w{name description} }))
-      grid.view[:values].should == [["somefeed", "Description"]]
-    end
-
-    it "should convert values of _id column to name of belonged model" do
-      grid = controller.get_grid(default_options)
-      grid.view[:values].should == [["somefeed", @category.name]]
-    end
-
-  end
   
 
   def default_options(options = {})
@@ -343,5 +314,6 @@ describe ApplicationController, "SolutionsGrid" do
       :paginate => nil
     }.merge(options)
   end
-  
+
 end
+

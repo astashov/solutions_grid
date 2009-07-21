@@ -13,8 +13,7 @@ module SolutionsGrid
     end
     
     
-    def place_date(grid, type, postfix)
-      name = grid.options[:name].to_sym
+    def place_date(name, type, postfix)
       date = session[:filter] && session[:filter][name] && session[:filter][name][type] && session[:filter][name][type][postfix]
       date = if date && !date['year'].blank?
         Date.civil(
@@ -28,6 +27,41 @@ module SolutionsGrid
       prefix = name.to_s + "_" + type.to_s + "_" + postfix.to_s + "_filter"
       select_date(date, :order => [:year, :month, :day], :prefix => prefix, :include_blank => true)
     end
+
+
+    def show_grid_header(options, column)
+      escaped_column = column.gsub('.', '_')
+      header = if self.respond_to?(method = "#{options[:name]}_header_#{escaped_column}")
+        send(method)
+      elsif self.respond_to?(method = "header_#{escaped_column}")
+        send(method)
+      else
+        h(column).humanize
+      end
+      
+      show_value = header
+      if options[:columns][:sort].include?(column)
+        path = sort_path(:column => URI.escape(column, "."), :grid_name => options[:name])
+        show_value = link_to(show_value, path, :class => "sorted")
+        if options[:sort_values] && options[:sort_values][:column] == column
+          show_value += options[:sort_values][:order] == 'asc' ? " &#8595;" : " &#8593;"
+        end
+      end
+      show_value
+    end
+
+
+    def show_grid_value(options, column, record)
+      escaped_column = column.gsub('.', '_')
+      if self.respond_to?(method = "#{options[:name]}_#{escaped_column}")
+        send(method, record)
+      elsif self.respond_to?(method = "grid_#{escaped_column}")
+        send(method, record)
+      else
+        h(record.send(escaped_column))
+      end
+    end
+
       
   end
 end

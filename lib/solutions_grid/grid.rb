@@ -2,9 +2,7 @@ class Grid
   include SolutionsGrid::ErrorsHandling  
   include SolutionsGrid::Records::Paginate
   include SolutionsGrid::Records::Sphinx
-  include SolutionsGrid::View  
 
-  attr_accessor :view
   attr_reader :records, :options, :conditions, :values, :include, :order
   
   # Grid initialization. It constructs SQL query (with sorting and filtering
@@ -214,7 +212,6 @@ class Grid
     @options[:columns][:filter] ||= []
     
     @records = get_records
-    @view = get_view
   end
 
 
@@ -257,7 +254,7 @@ class Grid
       case
       when association_with_column_match = column.match(/(.*)\.(.*)/)
         association = association_with_column_match[1].singularize.to_sym
-        [ association, column_with_table[2] ]
+        [ association, association_with_column_match[2] ]
       when association_match = column.match(/(.*)_id/)
         association = association_match[1].to_sym
         [ association, 'name' ]
