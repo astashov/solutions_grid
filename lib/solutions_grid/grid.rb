@@ -207,7 +207,6 @@ class Grid
     check_for_errors
 
     @options[:name] ||= options[:model].to_s.underscore.pluralize
-    @options[:actions] ||= []
     @options[:columns][:sort] ||= []
     @options[:columns][:filter] ||= []
     
@@ -267,7 +266,9 @@ class Grid
     def get_table_and_column(column)
       association, column = get_association_and_column(column)
       table = if association
-        @include << association unless @include.include?(association)
+        if !@include.include?(association) && association.to_s.pluralize != @options[:model].table_name
+          @include << association 
+        end
         association.to_s.pluralize
       else
         @options[:model].table_name

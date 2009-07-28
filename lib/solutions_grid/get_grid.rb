@@ -23,12 +23,13 @@ module SolutionsGrid::GetGrid
     end
 
     page = params["#{name}_page".to_sym] || ((session[:page]) ? session[:page][name.to_sym] : 1)
+    sort_values = options.delete(:sort)
 
     Grid.new({
       :view => self.instance_variable_get("@template"),
-      :sort_values => session[:sort] ? session[:sort][name.to_sym] : nil,
+      :sort_values => sort_values || (session[:sort] ? session[:sort][name.to_sym] : nil),
       :paginate => { :page => page, :per_page => 20}
-   }.merge(options))
+    }.merge(options))
   end
 end
 

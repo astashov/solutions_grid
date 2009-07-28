@@ -4,6 +4,10 @@ module SolutionsGrid::Records::Paginate
     method = @options[:paginate] ? :paginate : :find
     options = paginate_options
     @options[:filtered] = true unless options[:conditions].blank?
+    # Only for Metis - calculating and cache total entries of content items
+    if @options[:model].to_s == "ContentItem" && method == :paginate
+      options[:total_entries] ||= get_total_entries(options) 
+    end
     @options[:model].send(method, :all, options)
   end
 
@@ -104,6 +108,20 @@ module SolutionsGrid::Records::Paginate
         column = ActiveRecord::Base.connection.quote_column_name(column)
         "#{table}.#{column} #{order}"
       end
+    end
+
+
+    def get_total_entries(options)
+      count_options = options.dup.delete_if {|key, value| %w{page per_page order}.include?(key.to_s) }
+      total_entries = nil
+      ContentItemsCount.all.each do |content_items_count|
+        total_entries = content_items_count.count if content_items_count.options == count_options
+      end
+      unless total_entries
+        total_entries = @options[:model].count(count_options)
+        ContentItemsCount.create!(:count => total_entries, :options => count_options)
+      end
+      total_entries
     end
 
 end
