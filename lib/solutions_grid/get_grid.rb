@@ -8,7 +8,11 @@ module SolutionsGrid::GetGrid
 
     if options[:filter_values]
       options[:filter_values].each do |filter_type, filter_options|
-        filter_value = session[:filter] && session[:filter][name.to_sym] && session[:filter][name.to_sym][filter_type] 
+        filter_value = if options[:filter_from_params]
+          options[:filter_from_params][filter_type]
+        else
+          session[:filter] && session[:filter][name.to_sym] && session[:filter][name.to_sym][filter_type] 
+        end
         if filter_value
           if filter_options[:type] == :range
             filter_options[:value] = {

@@ -239,6 +239,7 @@ class Grid
 
 
     def convert_date_hash_to_integer(date)
+      return nil unless date
       date.symbolize_keys!
       unless date[:year].blank?
         year = "%04d" % date[:year].to_i
