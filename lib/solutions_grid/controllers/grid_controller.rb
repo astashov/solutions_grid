@@ -48,18 +48,14 @@ class GridController < ApplicationController
       flash[:notice] = "Filter was cleared"
     else
       params.each do |key, value|
-        if value.is_a? Hash
-          if match = key.match(/#{grid_name.to_s}_(.*)_(to|from)_filter/)
-            filter_name = match[1].to_sym
-            range_type = match[2].to_sym
-            session[:filter][grid_name][filter_name] ||= {}
-            session[:filter][grid_name][filter_name][range_type] = (value || "")
-          end
-        else
-          if match = key.match(/#{grid_name.to_s}_(.*)_filter/)
-            filter_name = match[1].to_sym 
-            session[:filter][grid_name][filter_name] = (value || "") if filter_name
-          end
+        if match = key.match(/#{grid_name.to_s}_(.*)_(to|from)_filter/)
+          filter_name = match[1].to_sym
+          range_type = match[2].to_sym
+          session[:filter][grid_name][filter_name] ||= {}
+          session[:filter][grid_name][filter_name][range_type] = set_date_filters(match, value)
+        elsif match = key.match(/#{grid_name.to_s}_(.*)_filter/)
+          filter_name = match[1].to_sym 
+          session[:filter][grid_name][filter_name] = (value || "") if filter_name
         end
       end
       flash[:notice] = "Data was filtered"
@@ -89,6 +85,23 @@ class GridController < ApplicationController
       flash[:error] = CGI.escapeHTML(msg.to_s)
       request.env["HTTP_REFERER"] ||= root_url
       redirect_to :back
+    end
+
+
+    def set_date_filters(match, value)
+      date_hash = value.match(/(\d+)\/(\d+)\/(\d+)/)
+      if date_hash
+        year = date_hash[3]
+        year = "20" + year if year.length == 2
+        date = Date.civil(year.to_i, date_hash[1].to_i, date_hash[2].to_i) rescue nil
+        if date
+          {'year' => year, 'month' => date_hash[1], 'day' => date_hash[2]}
+        else
+          ""
+        end
+      else
+        ""
+      end
     end
 
 end

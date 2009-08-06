@@ -1,3 +1,4 @@
+require 'pp'
 module SolutionsGrid
   module GridHelper
     
@@ -13,19 +14,20 @@ module SolutionsGrid
     end
     
     
-    def place_date(name, type, postfix)
+    def place_date(name, type, postfix, options = {})
       date = session[:filter] && session[:filter][name] && session[:filter][name][type] && session[:filter][name][type][postfix]
-      date = if date && !date['year'].blank?
+      date = if date && !date[:year].blank?
         Date.civil(
-          date['year'].to_i, 
-          (date['month'].blank? ? 1 : date['month']).to_i, 
-          (date['day'].blank? ? 1 : date['day']).to_i
+          date[:year].to_i, 
+          (date[:month].blank? ? 1 : date[:month]).to_i, 
+          (date[:day].blank? ? 1 : date[:day]).to_i
         ) rescue nil
       else
         nil
       end
       prefix = name.to_s + "_" + type.to_s + "_" + postfix.to_s + "_filter"
-      select_date(date, :order => [:year, :month, :day], :prefix => prefix, :include_blank => true)
+      #select_date(date, :order => [:year, :month, :day], :prefix => prefix, :include_blank => true)
+      text_field_tag(prefix, date ? date.strftime("%m/%d/%Y") : nil, options)
     end
 
 

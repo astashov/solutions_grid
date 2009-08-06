@@ -84,25 +84,21 @@ describe SolutionsGrid::GridHelper do
 
 
   it "should place default date" do
-    helper.place_date('feeds', :date, :from).should == select_date(
-      nil, 
-      :order => [:year, :month, :day], 
-      :prefix => 'feeds_date_from_filter', 
-      :include_blank => true
+    helper.place_date('feeds', :date, :from).should == text_field_tag(
+      'feeds_date_from_filter',
+      nil 
     )
   end
 
   it "should place filter date" do
     session[:filter] = { 'feeds' => { 'date' => { 'from' => { 
-      'year' => '2008',
-      'month' => '4',
-      'day' => '12'
+      :year => '2008',
+      :month => '4',
+      :day => '12'
     }}}}
-    helper.place_date('feeds', 'date', 'from').should == select_date(
-      Date.civil(2008, 4, 12), 
-      :order => [:year, :month, :day], 
-      :prefix => 'feeds_date_from_filter', 
-      :include_blank => true
+    helper.place_date('feeds', 'date', 'from').should == text_field_tag(
+      'feeds_date_from_filter',
+      Date.civil(2008, 4, 12).strftime("%m/%d/%Y")
     )
   end
 
