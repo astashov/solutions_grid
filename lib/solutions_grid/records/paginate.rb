@@ -26,6 +26,7 @@ module SolutionsGrid::Records::Paginate
       paginate_options[:include].uniq! if paginate_options[:include]
       paginate_options[:joins] = @options[:joins] if @options[:joins]
       paginate_options[:select] = @options[:select] if @options[:select]
+      paginate_options[:group] = @options[:group] if @options[:group]
       paginate_options.merge!(@options[:paginate]) if @options[:paginate]
       paginate_options
     end
