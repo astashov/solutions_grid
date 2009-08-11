@@ -26,7 +26,6 @@ module SolutionsGrid
         nil
       end
       prefix = name.to_s + "_" + type.to_s + "_" + postfix.to_s + "_filter"
-      #select_date(date, :order => [:year, :month, :day], :prefix => prefix, :include_blank => true)
       text_field_tag(prefix, date ? date.strftime("%m/%d/%Y") : nil, options)
     end
 
