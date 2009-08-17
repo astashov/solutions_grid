@@ -133,16 +133,17 @@ module SolutionsGrid::Records::Paginate
         # Only for Metis - calculate and cache total entries of content items
         get_total_entries(options) 
       elsif options[:group]
-        @options[:model].connection.select_all(@options[:model].send(:sanitize_sql, 
-          "SELECT COUNT(DISTINCT :column) AS count_all from :table",
-          { :column => options[:group], :table => @options[:model].table_name }
-        )).first['count_all'].to_i
+        @options[:model].connection.select_all(@options[:model].send(:sanitize_sql, [
+          "SELECT COUNT(DISTINCT :column) AS count_all from #{@options[:model].table_name}",
+          { :column => options[:group] }
+        ])).first['count_all'].to_i
       else
         count_options = get_count_options(options)
         @options[:model].count(count_options)
       end
       options[:page] = 1 if options[:page].to_i < 1
       last_page = (options[:total_entries].to_f / options[:per_page].to_f).ceil
+      last_page = 1 if last_page == 0 # If there are not records
       options[:page] = last_page if options[:page].to_i > last_page
       options
     end
