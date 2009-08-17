@@ -45,7 +45,7 @@ module SolutionsGrid::GetGrid
 
     Grid.new({
       :sort_values => sort_values || (session[:sort] ? session[:sort][name.to_sym] : nil),
-      :paginate => { :page => page, :per_page => per_page}
+      :paginate => { :page => page.to_i, :per_page => per_page.to_i}
     }.merge(options))
   end
 end

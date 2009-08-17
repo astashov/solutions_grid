@@ -301,6 +301,34 @@ describe ApplicationController, "SolutionsGrid" do
     end
 
   end
+
+
+  describe "Paginating" do
+
+    describe "Paginating by ActiveRecord" do
+
+      it "should set page = 1 if page < 1" do
+        FeedExample.should_receive(:paginate).with(:all, :page => 1, :per_page => 20, :total_entries => 1).and_return([@feed])
+        FeedExample.should_receive(:count).and_return(1)
+        controller.get_grid(default_options( :paginate =>  { :page => 0, :per_page => 20 }))
+      end
+
+      it "should set last page if page > last page" do
+        FeedExample.should_receive(:paginate).with(:all, :page => 5, :per_page => 20, :total_entries => 100).and_return([@feed])
+        FeedExample.should_receive(:count).and_return(100)
+        controller.get_grid(default_options( :paginate =>  { :page => 6, :per_page => 20 }))
+      end
+
+
+      it "should set page to 1 if total_entries < per_page" do
+        FeedExample.should_receive(:paginate).with(:all, :page => 1, :per_page => 20, :total_entries => 10).and_return([@feed])
+        FeedExample.should_receive(:count).and_return(10)
+        controller.get_grid(default_options( :paginate =>  { :page => 2, :per_page => 20 }))
+      end
+
+    end
+
+  end
   
 
   def default_options(options = {})

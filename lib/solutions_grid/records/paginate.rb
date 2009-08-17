@@ -4,10 +4,8 @@ module SolutionsGrid::Records::Paginate
     method = @options[:paginate] ? :paginate : :find
     options = paginate_options
     @options[:filtered] = true unless options[:conditions].blank?
-    # Only for Metis - calculating and cache total entries of content items
-    if @options[:model].to_s == "ContentItem" && method == :paginate
-      options[:total_entries] = @options[:paginate][:limit] || get_total_entries(options) 
-    end
+    options = make_corrections_to_paginate_options(options) if method == :paginate
+    
     @options[:model].send(method, :all, options)
   end
 
@@ -112,8 +110,12 @@ module SolutionsGrid::Records::Paginate
     end
 
 
+    def get_count_options(options)
+      options.dup.delete_if {|key, value| %w{page per_page total_entries order}.include?(key.to_s) }
+    end
+
     def get_total_entries(options)
-      count_options = options.dup.delete_if {|key, value| %w{page per_page total_entries order}.include?(key.to_s) }
+      count_options = get_count_options(options)
       total_entries = nil
       ContentItemsCount.all.each do |content_items_count|
         total_entries = content_items_count.count if content_items_count.options == count_options
@@ -123,6 +125,20 @@ module SolutionsGrid::Records::Paginate
         ContentItemsCount.create!(:count => total_entries, :options => count_options)
       end
       total_entries
+    end
+
+    def make_corrections_to_paginate_options(options)
+      if @options[:model].to_s == "ContentItem"
+        # Only for Metis - calculate and cache total entries of content items
+        options[:total_entries] = options[:limit] || get_total_entries(options) 
+      else
+        count_options = get_count_options(options)
+        options[:total_entries] = options[:limit] || @options[:model].count(count_options)
+      end
+      options[:page] = 1 if options[:page] < 1
+      last_page = (options[:total_entries].to_f / options[:per_page].to_f).ceil
+      options[:page] = last_page if options[:page] > last_page
+      options
     end
 
 end
