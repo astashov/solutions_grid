@@ -319,7 +319,6 @@ describe ApplicationController, "SolutionsGrid" do
         controller.get_grid(default_options( :paginate =>  { :page => 6, :per_page => 20 }))
       end
 
-
       it "should set page to 1 if total_entries < per_page" do
         FeedExample.should_receive(:paginate).with(:all, :page => 1, :per_page => 20, :total_entries => 10).and_return([@feed])
         FeedExample.should_receive(:count).and_return(10)

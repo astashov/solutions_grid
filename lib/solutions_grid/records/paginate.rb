@@ -111,7 +111,7 @@ module SolutionsGrid::Records::Paginate
 
 
     def get_count_options(options)
-      options.dup.delete_if {|key, value| %w{page per_page total_entries order}.include?(key.to_s) }
+      options.dup.delete_if {|key, value| %w{page per_page total_entries order select}.include?(key.to_s) }
     end
 
     def get_total_entries(options)
@@ -128,16 +128,22 @@ module SolutionsGrid::Records::Paginate
     end
 
     def make_corrections_to_paginate_options(options)
-      if @options[:model].to_s == "ContentItem"
+      options[:total_entries] = options[:limit]
+      options[:total_entries] ||= if @options[:model].to_s == "ContentItem"
         # Only for Metis - calculate and cache total entries of content items
-        options[:total_entries] = options[:limit] || get_total_entries(options) 
+        get_total_entries(options) 
+      elsif options[:group]
+        @options[:model].connection.select_all(@options[:model].send(:sanitize_sql, 
+          "SELECT COUNT(DISTINCT :column) AS count_all from :table",
+          { :column => options[:group], :table => @options[:model].table_name }
+        )).first['count_all'].to_i
       else
         count_options = get_count_options(options)
-        options[:total_entries] = options[:limit] || @options[:model].count(count_options)
+        @options[:model].count(count_options)
       end
-      options[:page] = 1 if options[:page] < 1
+      options[:page] = 1 if options[:page].to_i < 1
       last_page = (options[:total_entries].to_f / options[:per_page].to_f).ceil
-      options[:page] = last_page if options[:page] > last_page
+      options[:page] = last_page if options[:page].to_i > last_page
       options
     end
 
