@@ -93,7 +93,7 @@ class Grid
       else
         !value[:value].blank?
       end
-    end.empty? || (@options[:value] && @options[:values][:ids])
+    end.empty? || (@options[:values] && @options[:values][:ids])
   end
 
 
