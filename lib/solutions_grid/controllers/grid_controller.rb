@@ -90,9 +90,9 @@ class GridController < ApplicationController
 
     def set_date_filters(match, value)
       # Try 2-number and 4-number years
-      date = Date.strptime(value, current_user.date_format)
+      date = Date.strptime(value, current_user.date_format) rescue nil
       if !date || date.year < 1900
-        date = Date.strptime(value, current_user.date_format.gsub("Y", "y"))
+        date = Date.strptime(value, current_user.date_format.gsub("Y", "y")) rescue nil
       end
       if date
         {'year' => date.year, 'month' => date.month, 'day' => date.day}
