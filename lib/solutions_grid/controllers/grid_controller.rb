@@ -89,16 +89,13 @@ class GridController < ApplicationController
 
 
     def set_date_filters(match, value)
-      date_hash = value.match(/(\d+)\/(\d+)\/(\d+)/)
-      if date_hash
-        year = date_hash[3]
-        year = "20" + year if year.length == 2
-        date = Date.civil(year.to_i, date_hash[1].to_i, date_hash[2].to_i) rescue nil
-        if date
-          {'year' => year, 'month' => date_hash[1], 'day' => date_hash[2]}
-        else
-          ""
-        end
+      # Try 2-number and 4-number years
+      date = Date.strptime(value, current_user.date_format)
+      if !date || date.year < 1900
+        date = Date.strptime(value, current_user.date_format.gsub("Y", "y"))
+      end
+      if date
+        {'year' => date.year, 'month' => date.month, 'day' => date.day}
       else
         ""
       end

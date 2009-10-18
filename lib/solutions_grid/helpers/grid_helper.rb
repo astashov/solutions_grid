@@ -1,4 +1,3 @@
-require 'pp'
 module SolutionsGrid
   module GridHelper
     
@@ -26,7 +25,7 @@ module SolutionsGrid
         nil
       end
       prefix = name.to_s + "_" + type.to_s + "_" + postfix.to_s + "_filter"
-      text_field_tag(prefix, date ? date.strftime("%m/%d/%Y") : nil, options)
+      text_field_tag(prefix, date ? date.strftime(current_user.date_format) : nil, options)
     end
 
 
