@@ -44,20 +44,25 @@ class GridController < ApplicationController
     session[:filter][grid_name] ||= {}
     session[:page].delete(grid_name) if session[:page]
     if params[:commit] == 'Clear'
+      remove_ids_parameter_from_referer
       session[:filter][grid_name] = nil
       flash[:notice] = "Filter was cleared"
     else
+      should_remove_ids = true
       params.each do |key, value|
         if match = key.match(/#{grid_name.to_s}_(.*)_(to|from)_filter/)
           filter_name = match[1].to_sym
           range_type = match[2].to_sym
           session[:filter][grid_name][filter_name] ||= {}
           session[:filter][grid_name][filter_name][range_type] = set_date_filters(match, value)
+        elsif match = key.match(/#{grid_name.to_s}_limited_filter/)
+          should_remove_ids = false
         elsif match = key.match(/#{grid_name.to_s}_(.*)_filter/)
           filter_name = match[1].to_sym 
           session[:filter][grid_name][filter_name] = (value || "") if filter_name
         end
       end
+      remove_ids_parameter_from_referer if should_remove_ids
       flash[:notice] = "Data was filtered"
     end
     
@@ -85,6 +90,17 @@ class GridController < ApplicationController
       flash[:error] = CGI.escapeHTML(msg.to_s)
       request.env["HTTP_REFERER"] ||= root_url
       redirect_to :back
+    end
+
+
+    def remove_ids_parameter_from_referer
+      referer = URI.parse(request.env["HTTP_REFERER"])
+      options_string = referer.query.to_s.split("&")
+      options_string.delete_if { |o| o.match(/^ids=/) }
+      referer.query = options_string.join("&")
+      # Avoid '?' after URL
+      referer.query = nil if referer.query.blank?
+      request.env["HTTP_REFERER"] = referer.to_s
     end
 
 
