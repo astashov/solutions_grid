@@ -67,7 +67,11 @@ module SolutionsGrid::Records::Paginate
       quoted_column = ActiveRecord::Base.connection.quote_column_name(column)
       case filter_options[:type]
       when :strict
-        conditions << "#{table}.#{quoted_column} = :#{column}"
+        if filter_options[:value].is_a? Array
+          conditions << "#{table}.#{quoted_column} IN (:#{column})"
+        else
+          conditions << "#{table}.#{quoted_column} = :#{column}"
+        end
         values[column.to_sym] = filter_options[:value]
       when :match
         conditions << "#{table}.#{quoted_column} LIKE :#{column}"
