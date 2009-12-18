@@ -78,13 +78,21 @@ module SolutionsGrid::Records::Paginate
         values[column.to_sym] = "%#{filter_options[:value]}%"
       when :range
         date_conditions = []
-        if date = convert_date_hash_to_integer(filter_options[:value][:from])
-          date_conditions << "#{table}.#{quoted_column} >= :#{column}_from"
-          values[(column + "_from").to_sym] = date
-        end
-        if date = convert_date_hash_to_integer(filter_options[:value][:to])
-          date_conditions << "#{table}.#{quoted_column} <= :#{column}_to"
-          values[(column + "_to").to_sym] = date
+        # If date from = date to, we can avoid expensive '>=' and '<=' operation and use usual '=' 
+        if filter_options[:value][:from] == filter_options[:value][:to]
+          if date = convert_date_hash_to_integer(filter_options[:value][:from])
+            date_conditions << "#{table}.#{quoted_column} = :#{column}"
+            values[column.to_sym] = date
+          end
+        else
+          if date = convert_date_hash_to_integer(filter_options[:value][:from])
+            date_conditions << "#{table}.#{quoted_column} >= :#{column}_from"
+            values[(column + "_from").to_sym] = date
+          end
+          if date = convert_date_hash_to_integer(filter_options[:value][:to])
+            date_conditions << "#{table}.#{quoted_column} <= :#{column}_to"
+            values[(column + "_to").to_sym] = date
+          end
         end
         conditions << date_conditions.join(" AND ") unless date_conditions.empty?
       end

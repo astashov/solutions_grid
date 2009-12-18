@@ -13,16 +13,19 @@ module SolutionsGrid::GetGrid
   def get_grid(options)
     options[:name] ||= options[:model].to_s.underscore.pluralize
     name = options[:name]
-    session[:grid] ||= {}
-    session[:grid][name] ||= {}
-    session[:grid][name][:controller] = params[:controller]
-    session[:grid][name][:action] = params[:action]
+    with_session = (options.has_key?(:session) && options[:session] == false ? false : true)
+    if with_session
+      session[:grid] ||= {}
+      session[:grid][name] ||= {}
+      session[:grid][name][:controller] = params[:controller]
+      session[:grid][name][:action] = params[:action]
+    end
 
     if options[:filter_values]
       options[:filter_values].each do |filter_type, filter_options|
         filter_value = if options[:filter_from_params]
           options[:filter_from_params][filter_type]
-        else
+        elsif with_session
           session[:filter] && session[:filter][name.to_sym] && session[:filter][name.to_sym][filter_type] 
         end
         # Add values for filtering by
@@ -39,12 +42,14 @@ module SolutionsGrid::GetGrid
       end
     end
 
-    page = params["#{name}_page".to_sym] || ((session[:page]) ? session[:page][name.to_sym] : 1)
+    page = params["#{name}_page".to_sym]
+    page ||= ((session[:page]) ? session[:page][name.to_sym] : 1) if with_session
     per_page = options.delete(:per_page) || 20
     sort_values = options.delete(:sort)
+    sort_values ||= (session[:sort] ? session[:sort][name.to_sym] : nil) if with_session
 
     Grid.new({
-      :sort_values => sort_values || (session[:sort] ? session[:sort][name.to_sym] : nil),
+      :sort_values => sort_values,
       :paginate => { :page => page.to_i, :per_page => per_page.to_i}
     }.merge(options))
   end
