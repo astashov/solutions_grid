@@ -21,7 +21,7 @@ module SolutionsGrid::GetGrid
       session[:grid][name][:action] = params[:action]
     end
 
-    if options[:filter_values]
+    if options[:filter_values] && params[:filter] != "none"
       options[:filter_values].each do |filter_type, filter_options|
         filter_value = if options[:filter_from_params]
           options[:filter_from_params][filter_type]
